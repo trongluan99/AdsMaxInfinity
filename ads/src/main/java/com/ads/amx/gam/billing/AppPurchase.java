@@ -25,12 +25,14 @@ import com.android.billingclient.api.BillingFlowParams;
 import com.android.billingclient.api.BillingResult;
 import com.android.billingclient.api.ConsumeParams;
 import com.android.billingclient.api.ConsumeResponseListener;
+import com.android.billingclient.api.PendingPurchasesParams;
 import com.android.billingclient.api.ProductDetails;
 import com.android.billingclient.api.ProductDetailsResponseListener;
 import com.android.billingclient.api.Purchase;
 import com.android.billingclient.api.PurchasesResponseListener;
 import com.android.billingclient.api.PurchasesUpdatedListener;
 import com.android.billingclient.api.QueryProductDetailsParams;
+import com.android.billingclient.api.QueryProductDetailsResult;
 import com.android.billingclient.api.QueryPurchasesParams;
 import com.google.common.collect.ImmutableList;
 
@@ -214,7 +216,9 @@ public class AppPurchase {
                     billingClient.queryProductDetailsAsync(
                             paramsINAP,
                             new ProductDetailsResponseListener() {
-                                public void onProductDetailsResponse(BillingResult billingResult, List<ProductDetails> productDetailsList) {
+                                @Override
+                                public void onProductDetailsResponse(BillingResult billingResult, QueryProductDetailsResult result) {
+                                    List<ProductDetails> productDetailsList = result != null ? result.getProductDetailsList() : null;
                                     if (productDetailsList != null) {
                                         Log.d(TAG, "onSkuINAPDetailsResponse: " + productDetailsList.size());
                                         skuListINAPFromStore = productDetailsList;
@@ -233,7 +237,9 @@ public class AppPurchase {
                     billingClient.queryProductDetailsAsync(
                             paramsSUBS,
                             new ProductDetailsResponseListener() {
-                                public void onProductDetailsResponse(BillingResult billingResult, List<ProductDetails> productDetailsList) {
+                                @Override
+                                public void onProductDetailsResponse(BillingResult billingResult, QueryProductDetailsResult result) {
+                                    List<ProductDetails> productDetailsList = result != null ? result.getProductDetailsList() : null;
                                     if (productDetailsList != null) {
                                         Log.d(TAG, "onSkuSubsDetailsResponse: " + productDetailsList.size());
                                         skuListSubsFromStore = productDetailsList;
@@ -282,7 +288,7 @@ public class AppPurchase {
 
         billingClient = BillingClient.newBuilder(application)
                 .setListener(purchasesUpdatedListener)
-                .enablePendingPurchases()
+                .enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
                 .build();
 
         billingClient.startConnection(purchaseClientStateListener);
@@ -715,11 +721,11 @@ public class AppPurchase {
     }
 
     public void consumePurchase(String productId) {
-        billingClient.queryPurchasesAsync(BillingClient.ProductType.INAPP, (billingResult, list) -> {
+        billingClient.queryPurchasesAsync(QueryPurchasesParams.newBuilder().setProductType(BillingClient.ProductType.INAPP).build(), (billingResult, list) -> {
             Purchase pc = null;
             if (billingResult.getResponseCode() == BillingClient.BillingResponseCode.OK && list != null) {
                 for (Purchase purchase : list) {
-                    if (purchase.getSkus().contains(productId)) {
+                    if (purchase.getProducts().contains(productId)) {
                         pc = purchase;
                     }
                 }

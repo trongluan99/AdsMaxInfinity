@@ -1,20 +1,20 @@
 plugins {
     id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
 }
-apply plugin: 'kotlin-android'
 
 android {
     namespace 'com.amx.module'
-    compileSdkVersion 34
+    compileSdk 36
 
     defaultConfig {
         applicationId "com.amx.gam.module"
-        minSdkVersion 24
-        targetSdkVersion 34
+        minSdk 24
+        targetSdk 36
         versionCode 1
         versionName "1.0"
         def formattedDate = new Date().format('MMM.dd.yyyy')
-        archivesBaseName = "AmxStudio_v${versionName}(${versionCode})_${formattedDate}"
+        setProperty("archivesBaseName", "AmxStudio_v${versionName}(${versionCode})_${formattedDate}")
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -49,14 +49,17 @@ android {
             buildConfigField "String", "ad_reward_inter", "\"ca-app-pub-3940256099942544/5354046379\""
             buildConfigField "String", "ad_appopen_resume", "\"ca-app-pub-3940256099942544/3419835294\""
             buildConfigField "String", "ad_native", "\"ca-app-pub-3940256099942544/2247696110\""
-            buildConfigField "String", "ad_native", "\"ca-app-pub-3940256099942544/3419835294\""
             buildConfigField "String", "ads_open_app", "\"ca-app-pub-3940256099942544/3419835294\""
             buildConfigField "Boolean", "env_dev", "false"
         }
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
     }
 
     buildFeatures {
@@ -70,11 +73,11 @@ dependencies {
     implementation 'com.google.android.material:material:1.2.1'
     implementation 'androidx.constraintlayout:constraintlayout:2.0.4'
     implementation project(path: ':ads')
-    implementation 'com.google.android.gms:play-services-ads:21.1.0'
+    implementation 'com.google.android.gms:play-services-ads:23.3.0'
     implementation 'androidx.multidex:multidex:2.0.1'
     implementation 'androidx.legacy:legacy-support-v4:1.0.0'
     implementation "androidx.core:core-ktx:1.8.0"
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
     implementation 'androidx.core:core-splashscreen:1.0.0-rc01'
     implementation 'androidx.work:work-runtime-ktx:2.7.0'
 

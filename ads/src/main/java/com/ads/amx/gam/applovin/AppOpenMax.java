@@ -133,6 +133,10 @@ public class AppOpenMax implements Application.ActivityLifecycleCallbacks, Lifec
                 }
             }
         });
+        appOpenAd.setRevenueListener(ad -> {
+            AmxGamLogEventManager.logPaidAdImpression(application, ad, AdType.APP_OPEN);
+            AmxGamLogEventManager.logPaidAdjustWithTokenMax(ad, ad.getAdUnitId(), AmxGamAdConfig.ADJUST_TOKEN_TIKTOK);
+        });
         appOpenAd.loadAd();
     }
 
@@ -353,13 +357,20 @@ public class AppOpenMax implements Application.ActivityLifecycleCallbacks, Lifec
 
                 @Override
                 public void onAdLoadFailed(String s, MaxError maxError) {
-                    Log.d(TAG, "onAdLoadFailed: ");
-                    openAdSplash.loadAd();
+                    Log.d(TAG, "onAdLoadFailed: " + (maxError != null ? maxError.getMessage() : ""));
+                    handler.removeCallbacks(timeOutRunnable);
+                    if (adCallback != null) {
+                        adCallback.onAdLoadFailed();
+                    }
                 }
 
                 @Override
                 public void onAdDisplayFailed(MaxAd maxAd, MaxError maxError) {
                     Log.d(TAG, "onAdDisplayFailed: ");
+                    handler.removeCallbacks(timeOutRunnable);
+                    if (adCallback != null) {
+                        adCallback.onAdDisplayFailed();
+                    }
                 }
             });
             openAdSplash.loadAd();
@@ -375,7 +386,7 @@ public class AppOpenMax implements Application.ActivityLifecycleCallbacks, Lifec
             return;
         }
 
-        if (openAdSplash.isReady()) {
+        if (openAdSplash != null && openAdSplash.isReady()) {
             openAdSplash.setListener(new MaxAdListener() {
                 @Override
                 public void onAdLoaded(MaxAd maxAd) {
@@ -394,6 +405,7 @@ public class AppOpenMax implements Application.ActivityLifecycleCallbacks, Lifec
 
                 @Override
                 public void onAdHidden(MaxAd maxAd) {
+                    isShowingAd = false;
                     if (adCallback != null) {
                         adCallback.onNextAction();
                     }
@@ -415,6 +427,7 @@ public class AppOpenMax implements Application.ActivityLifecycleCallbacks, Lifec
 
                 @Override
                 public void onAdDisplayFailed(MaxAd maxAd, MaxError maxError) {
+                    isShowingAd = false;
                     if (adCallback != null) {
                         adCallback.onAdDisplayFailed();
                     }
@@ -449,5 +462,16 @@ public class AppOpenMax implements Application.ActivityLifecycleCallbacks, Lifec
                 = (ConnectivityManager) myApplication.getSystemService(Context.CONNECTIVITY_SERVICE);
         NetworkInfo activeNetworkInfo = connectivityManager != null ? connectivityManager.getActiveNetworkInfo() : null;
         return activeNetworkInfo != null && activeNetworkInfo.isConnected();
+    }
+
+    public void destroy() {
+        if (appOpenAd != null) {
+            appOpenAd.destroy();
+            appOpenAd = null;
+        }
+        if (openAdSplash != null) {
+            openAdSplash.destroy();
+            openAdSplash = null;
+        }
     }
 }

@@ -1,12 +1,12 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 buildscript {
     ext {
-        agp_version = '7.4.2'
+        agp_version = '8.9.1'
     }
-    ext.kotlin_version = '1.7.10'
+    ext.kotlin_version = '2.0.21'
     repositories {
         google()
-        jcenter()
+        mavenCentral()
     }
     dependencies {
         classpath "com.android.tools.build:gradle:$agp_version"
@@ -19,11 +19,9 @@ buildscript {
 
 allprojects {
     repositories {
-
         google()
-        jcenter()
         mavenCentral()
-        maven {url 'https://android-sdk.is.com/'}
+        maven { url 'https://android-sdk.is.com/' }
         maven {
             url 'https://artifact.bytedance.com/repository/pangle'
         }
@@ -44,6 +42,6 @@ allprojects {
     }
 }
 
-task clean(type: Delete) {
-    delete rootProject.buildDir
-}
+tasks.register('clean', Delete) {
+    delete rootProject.layout.buildDirectory
+}

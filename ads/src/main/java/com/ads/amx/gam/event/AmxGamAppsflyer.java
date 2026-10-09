@@ -9,13 +9,13 @@ import androidx.annotation.NonNull;
 import com.ads.amx.gam.billing.AppPurchase;
 import com.ads.amx.gam.funtion.AdType;
 import com.applovin.mediation.MaxAd;
-import com.appsflyer.AFInAppEventParameterName;
-import com.appsflyer.AFInAppEventType;
 import com.appsflyer.AppsFlyerLib;
+import com.appsflyer.share.AFInAppEventParameterName;
+import com.appsflyer.share.AFInAppEventType;
 import com.appsflyer.adrevenue.AppsFlyerAdRevenue;
 import com.appsflyer.adrevenue.adnetworks.generic.MediationNetwork;
 import com.appsflyer.adrevenue.adnetworks.generic.Scheme;
-import com.appsflyer.attribution.AppsFlyerRequestListener;
+import com.appsflyer.share.attribution.AppsFlyerRequestListener;
 import com.google.android.gms.ads.AdValue;
 
 import java.util.Currency;
@@ -45,7 +45,7 @@ public class AmxGamAppsflyer {
     public void init(Application context, String devKey, boolean enableDebugLog) {
         this.context = context;
         AppsFlyerLib.getInstance().init(devKey, null, context);
-        AppsFlyerLib.getInstance().start(context);
+        AppsFlyerLib.getInstance().start();
 
         AppsFlyerAdRevenue.Builder afRevenueBuilder = new AppsFlyerAdRevenue.Builder(context);
         AppsFlyerAdRevenue.initialize(afRevenueBuilder.build());

@@ -308,8 +308,7 @@ public class AppOpenManager implements Application.ActivityLifecycleCallbacks, L
         }
         AdRequest request = getAdRequest();
         AppOpenAd.load(
-                myApplication, isSplash ? splashAdId : appResumeAdId, request,
-                AppOpenAd.APP_OPEN_AD_ORIENTATION_PORTRAIT, loadCallback);
+                myApplication, isSplash ? splashAdId : appResumeAdId, request, loadCallback);
     }
 
     private void showTestIdAlert(Context context, boolean isSplash, String id) {
@@ -928,9 +927,9 @@ public class AppOpenManager implements Application.ActivityLifecycleCallbacks, L
         AdRequest request = getAdRequest();
         AdRequest request1 = getAdRequest();
         AdRequest request2 = getAdRequest();
-        AppOpenAd.load(myApplication, idOpenHigh, request, AppOpenAd.APP_OPEN_AD_ORIENTATION_PORTRAIT, loadCallbackHigh);
-        AppOpenAd.load(myApplication, idOpenMedium, request1, AppOpenAd.APP_OPEN_AD_ORIENTATION_PORTRAIT, loadCallbackMedium);
-        AppOpenAd.load(myApplication, idOpenAll, request2, AppOpenAd.APP_OPEN_AD_ORIENTATION_PORTRAIT, loadCallbackAll);
+        AppOpenAd.load(myApplication, idOpenHigh, request, loadCallbackHigh);
+        AppOpenAd.load(myApplication, idOpenMedium, request1, loadCallbackMedium);
+        AppOpenAd.load(myApplication, idOpenAll, request2, loadCallbackAll);
     }
 
     public void loadSplashOpenAndInter(Class splashActivity, AppCompatActivity activity, String idOpen, String idInter, int timeOutOpen, AdCallback adListener) {
@@ -1132,7 +1131,7 @@ public class AppOpenManager implements Application.ActivityLifecycleCallbacks, L
 
                 });
 
-        AppOpenAd.load(myApplication, idOpen, getAdRequest(), AppOpenAd.APP_OPEN_AD_ORIENTATION_PORTRAIT, loadCallbackOpen);
+        AppOpenAd.load(myApplication, idOpen, getAdRequest(), loadCallbackOpen);
         currentTime = System.currentTimeMillis();
     }
 
@@ -1201,8 +1200,7 @@ public class AppOpenManager implements Application.ActivityLifecycleCallbacks, L
                 };
         AdRequest request = getAdRequest();
         AppOpenAd.load(
-                myApplication, splashAdId, request,
-                AppOpenAd.APP_OPEN_AD_ORIENTATION_PORTRAIT, loadCallback);
+                myApplication, splashAdId, request, loadCallback);
 
         if (splashTimeout > 0) {
             timeoutHandler = new Handler();
@@ -1243,7 +1241,7 @@ public class AppOpenManager implements Application.ActivityLifecycleCallbacks, L
         handleTimeOut.postDelayed(actionTimeOut, timeOutOpen);
         AppOpenManager.getInstance().setSplashActivity(splashActivity, idOpenHigh, timeOutOpen);
 
-        AppOpenAd.load(activity, idOpenHigh, getAdRequest(), AppOpenAd.APP_OPEN_AD_ORIENTATION_PORTRAIT, new AppOpenAd.AppOpenAdLoadCallback() {
+        AppOpenAd.load(activity, idOpenHigh, getAdRequest(), new AppOpenAd.AppOpenAdLoadCallback() {
             @Override
             public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
                 super.onAdFailedToLoad(loadAdError);
@@ -1335,8 +1333,7 @@ public class AppOpenManager implements Application.ActivityLifecycleCallbacks, L
         });
 
         AppOpenAd.load(activity, idOpenAll,
-
-                getAdRequest(), AppOpenAd.APP_OPEN_AD_ORIENTATION_PORTRAIT, new AppOpenAd.AppOpenAdLoadCallback() {
+                getAdRequest(), new AppOpenAd.AppOpenAdLoadCallback() {
                     @Override
                     public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
                         super.onAdFailedToLoad(loadAdError);
@@ -1616,7 +1613,7 @@ public class AppOpenManager implements Application.ActivityLifecycleCallbacks, L
 
                 }
             };
-            AppOpenAd.load(context, adUnitId, adRequest, 1, appOpenAdLoadCallback);
+            AppOpenAd.load(context, adUnitId, adRequest, appOpenAdLoadCallback);
         }
 
     }
@@ -1679,7 +1676,7 @@ public class AppOpenManager implements Application.ActivityLifecycleCallbacks, L
 
                 }
             };
-            AppOpenAd.load(context, (String) listIDResume.get(0), adRequest, 1, appOpenAdLoadCallback);
+            AppOpenAd.load(context, (String) listIDResume.get(0), adRequest, appOpenAdLoadCallback);
         }
 
     }

@@ -2,6 +2,7 @@ package com.ads.amx.gam.applovin;
 
 import androidx.annotation.Nullable;
 
+import com.applovin.mediation.MaxAd;
 import com.applovin.mediation.MaxError;
 import com.applovin.mediation.MaxReward;
 import com.applovin.mediation.ads.MaxInterstitialAd;
@@ -41,6 +42,13 @@ public class AppLovinCallback {
     }
 
     public void onUnifiedNativeAdLoaded(MaxNativeAdView unifiedNativeAd) {
+    }
+
+    public void onNativeAdLoaded(MaxNativeAdView unifiedNativeAd, MaxAd nativeAd) {
+        onUnifiedNativeAdLoaded(unifiedNativeAd);
+    }
+
+    public void onNativeAdExpired(MaxAd nativeAd) {
     }
 
     public void onNextAction() {

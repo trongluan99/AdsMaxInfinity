@@ -130,7 +130,7 @@ public class AmxGamAd {
 
         // Change the log level.
         config.setLogLevel(LogLevel.VERBOSE);
-        config.setPreinstallTrackingEnabled(true);
+        config.enablePreinstallTracking();
         config.setOnAttributionChangedListener(new OnAttributionChangedListener() {
             @Override
             public void onAttributionChanged(AdjustAttribution attribution) {
@@ -142,7 +142,7 @@ public class AmxGamAd {
         // Set event success tracking delegate.
         config.setOnEventTrackingSucceededListener(new OnEventTrackingSucceededListener() {
             @Override
-            public void onFinishedEventTrackingSucceeded(AdjustEventSuccess eventSuccessResponseData) {
+            public void onEventTrackingSucceeded(AdjustEventSuccess eventSuccessResponseData) {
                 Log.d(TAG_ADJUST, "Event success callback called!");
                 Log.d(TAG_ADJUST, "Event success data: " + eventSuccessResponseData.toString());
             }
@@ -150,7 +150,7 @@ public class AmxGamAd {
         // Set event failure tracking delegate.
         config.setOnEventTrackingFailedListener(new OnEventTrackingFailedListener() {
             @Override
-            public void onFinishedEventTrackingFailed(AdjustEventFailure eventFailureResponseData) {
+            public void onEventTrackingFailed(AdjustEventFailure eventFailureResponseData) {
                 Log.d(TAG_ADJUST, "Event failure callback called!");
                 Log.d(TAG_ADJUST, "Event failure data: " + eventFailureResponseData.toString());
             }
@@ -159,7 +159,7 @@ public class AmxGamAd {
         // Set session success tracking delegate.
         config.setOnSessionTrackingSucceededListener(new OnSessionTrackingSucceededListener() {
             @Override
-            public void onFinishedSessionTrackingSucceeded(AdjustSessionSuccess sessionSuccessResponseData) {
+            public void onSessionTrackingSucceeded(AdjustSessionSuccess sessionSuccessResponseData) {
                 Log.d(TAG_ADJUST, "Session success callback called!");
                 Log.d(TAG_ADJUST, "Session success data: " + sessionSuccessResponseData.toString());
             }
@@ -168,15 +168,15 @@ public class AmxGamAd {
         // Set session failure tracking delegate.
         config.setOnSessionTrackingFailedListener(new OnSessionTrackingFailedListener() {
             @Override
-            public void onFinishedSessionTrackingFailed(AdjustSessionFailure sessionFailureResponseData) {
+            public void onSessionTrackingFailed(AdjustSessionFailure sessionFailureResponseData) {
                 Log.d(TAG_ADJUST, "Session failure callback called!");
                 Log.d(TAG_ADJUST, "Session failure data: " + sessionFailureResponseData.toString());
             }
         });
 
 
-        config.setSendInBackground(true);
-        Adjust.onCreate(config);
+        config.enableSendingInBackground();
+        Adjust.initSdk(config);
         adConfig.getApplication().registerActivityLifecycleCallbacks(new AdjustLifecycleCallbacks());
     }
 

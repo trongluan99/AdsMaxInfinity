@@ -24,6 +24,7 @@ import com.ads.amx.gam.funtion.AdCallback;
 import com.ads.amx.gam.funtion.AdType;
 import com.ads.amx.gam.util.SharePreferenceUtils;
 import com.applovin.mediation.MaxAd;
+import com.applovin.mediation.MaxAdFormat;
 import com.applovin.mediation.MaxAdListener;
 import com.applovin.mediation.MaxAdViewAdListener;
 import com.applovin.mediation.MaxError;
@@ -39,7 +40,10 @@ import com.applovin.mediation.nativeAds.MaxNativeAdViewBinder;
 import com.applovin.mediation.nativeAds.adPlacer.MaxAdPlacer;
 import com.applovin.mediation.nativeAds.adPlacer.MaxAdPlacerSettings;
 import com.applovin.mediation.nativeAds.adPlacer.MaxRecyclerAdapter;
+import com.applovin.sdk.AppLovinMediationProvider;
 import com.applovin.sdk.AppLovinSdk;
+import com.applovin.sdk.AppLovinSdkInitializationConfiguration;
+import com.applovin.sdk.AppLovinSdkUtils;
 import com.facebook.shimmer.ShimmerFrameLayout;
 
 import java.util.Calendar;
@@ -64,6 +68,8 @@ public class AppLovin {
     private MaxInterstitialAd interstitialSplash;
     private MaxInterstitialAd interstitialAd;
     private MaxNativeAdView nativeAdView;
+    private MaxNativeAdLoader lastNativeAdLoader;
+    private MaxAd loadedNativeAd;
 
     private String tokenAdjust;
 
@@ -85,10 +91,14 @@ public class AppLovin {
                 WebView.setDataDirectorySuffix(processName);
             }
         }
-        AppLovinSdk.getInstance(context).setMediationProvider("max");
-        AppLovinSdk.initializeSdk(context, configuration -> {
+        AppLovinSdkInitializationConfiguration initConfig = AppLovinSdkInitializationConfiguration.builder(AppLovinSdk.getInstance(context).getSdkKey())
+                .setMediationProvider(AppLovinMediationProvider.MAX)
+                .build();
+        AppLovinSdk.getInstance(context).initialize(initConfig, configuration -> {
             Log.d(TAG, "init: applovin success");
-            adCallback.initAppLovinSuccess();
+            if (adCallback != null) {
+                adCallback.initAppLovinSuccess();
+            }
         });
         this.tokenAdjust = tokenAdjust;
         this.context = context;
@@ -102,12 +112,20 @@ public class AppLovin {
                 WebView.setDataDirectorySuffix(processName);
             }
         }
-        if (enableDebug)
-            AppLovinSdk.getInstance(context).showMediationDebugger();
-        AppLovinSdk.getInstance(context).setMediationProvider("max");
-        AppLovinSdk.initializeSdk(context, configuration -> {
+        if (enableDebug != null && enableDebug) {
+            AppLovinSdk.getInstance(context).getSettings().setVerboseLogging(true);
+        }
+        AppLovinSdkInitializationConfiguration initConfig = AppLovinSdkInitializationConfiguration.builder(AppLovinSdk.getInstance(context).getSdkKey())
+                .setMediationProvider(AppLovinMediationProvider.MAX)
+                .build();
+        AppLovinSdk.getInstance(context).initialize(initConfig, configuration -> {
             Log.d(TAG, "init: applovin success");
-            adCallback.initAppLovinSuccess();
+            if (enableDebug != null && enableDebug) {
+                AppLovinSdk.getInstance(context).showMediationDebugger();
+            }
+            if (adCallback != null) {
+                adCallback.initAppLovinSuccess();
+            }
         });
         this.tokenAdjust = tokenAdjust;
         this.context = context;
@@ -431,6 +449,7 @@ public class AppLovin {
             @Override
             public void onAdDisplayFailed(MaxAd ad, MaxError error) {
                 Log.d(TAG, "onAdDisplayFailed: " + error.getMessage());
+                AppOpenMax.getInstance().setInterstitialShowing(false);
                 interstitialSplash = null;
                 isShowLoadingSplash = false;
                 if (adListener != null) {
@@ -627,6 +646,10 @@ public class AppLovin {
             @Override
             public void onAdDisplayFailed(MaxAd ad, MaxError error) {
                 Log.e(TAG, "onAdDisplayFailed: " + error.getMessage());
+                AppOpenMax.getInstance().setInterstitialShowing(false);
+                if (shouldReloadAds) {
+                    requestInterstitialAds(interstitialAd);
+                }
                 if (callback != null) {
                     callback.onAdClosed();
                     if (dialog != null) {
@@ -891,17 +914,7 @@ public class AppLovin {
     }
 
 
-    public void loadNativeAd(Activity activity, ShimmerFrameLayout containerShimmer, FrameLayout nativeAdLayout, String id, int layoutCustomNative) {
-
-        if (AppPurchase.getInstance().isPurchased(context)) {
-            containerShimmer.setVisibility(View.GONE);
-            return;
-        }
-        containerShimmer.setVisibility(View.VISIBLE);
-        containerShimmer.startShimmer();
-
-        nativeAdLayout.removeAllViews();
-        nativeAdLayout.setVisibility(View.GONE);
+    public MaxNativeAdView createNativeAdView(Activity activity, int layoutCustomNative) {
         MaxNativeAdViewBinder binder = new MaxNativeAdViewBinder.Builder(layoutCustomNative)
                 .setTitleTextViewId(R.id.ad_headline)
                 .setBodyTextViewId(R.id.ad_body)
@@ -911,177 +924,286 @@ public class AppLovin {
                 .setOptionsContentViewGroupId(R.id.ad_options_view)
                 .setCallToActionButtonId(R.id.ad_call_to_action)
                 .build();
+        return new MaxNativeAdView(binder, activity);
+    }
 
-        nativeAdView = new MaxNativeAdView(binder, activity);
-
-        MaxNativeAdLoader nativeAdLoader = new MaxNativeAdLoader(id, activity);
+    public MaxNativeAdLoader createNativeAdLoader(Activity activity, String adUnitId) {
+        MaxNativeAdLoader nativeAdLoader = new MaxNativeAdLoader(adUnitId, activity);
         nativeAdLoader.setRevenueListener(ad -> {
             AmxGamLogEventManager.logPaidAdImpression(activity, ad, AdType.NATIVE);
             if (tokenAdjust != null) {
                 AmxGamLogEventManager.logPaidAdjustWithTokenMax(ad, ad.getAdUnitId(), tokenAdjust);
             }
         });
+        return nativeAdLoader;
+    }
+
+    public void renderNativeAd(MaxNativeAdLoader loader, MaxNativeAdView adView, MaxAd ad) {
+        if (loader != null && adView != null && ad != null) {
+            loader.render(adView, ad);
+        }
+    }
+
+    public void destroyNativeAd(MaxNativeAdLoader loader, MaxAd ad) {
+        if (loader != null) {
+            if (ad != null) {
+                loader.destroy(ad);
+            }
+            loader.destroy();
+        }
+    }
+
+    public void destroyNativeAd(MaxNativeAdLoader loader) {
+        if (loader != null) {
+            loader.destroy();
+        }
+    }
+
+    public void destroyNativeAd() {
+        if (lastNativeAdLoader != null) {
+            if (loadedNativeAd != null) {
+                lastNativeAdLoader.destroy(loadedNativeAd);
+                loadedNativeAd = null;
+            }
+            lastNativeAdLoader.destroy();
+            lastNativeAdLoader = null;
+        }
+    }
+
+    public void loadNativeAd(Activity activity, ShimmerFrameLayout containerShimmer, FrameLayout nativeAdLayout, String id, int layoutCustomNative) {
+        if (AppPurchase.getInstance().isPurchased(context)) {
+            if (containerShimmer != null) {
+                containerShimmer.setVisibility(View.GONE);
+            }
+            return;
+        }
+        if (containerShimmer != null) {
+            containerShimmer.setVisibility(View.VISIBLE);
+            containerShimmer.startShimmer();
+        }
+
+        if (nativeAdLayout != null) {
+            nativeAdLayout.removeAllViews();
+            nativeAdLayout.setVisibility(View.GONE);
+        }
+
+        nativeAdView = createNativeAdView(activity, layoutCustomNative);
+        MaxNativeAdLoader nativeAdLoader = createNativeAdLoader(activity, id);
+        lastNativeAdLoader = nativeAdLoader;
+
         nativeAdLoader.setNativeAdListener(new MaxNativeAdListener() {
             @Override
-            public void onNativeAdLoaded(final MaxNativeAdView nativeAdView, final MaxAd ad) {
-                Log.d(TAG, "onNativeAdLoaded ");
-                containerShimmer.stopShimmer();
-                containerShimmer.setVisibility(View.GONE);
-                // Add ad view to view.
-                nativeAdLayout.setVisibility(View.VISIBLE);
-                nativeAdLayout.addView(nativeAdView);
+            public void onNativeAdLoaded(final MaxNativeAdView adView, final MaxAd ad) {
+                Log.d(TAG, "onNativeAdLoaded");
+                // Destroy any pre-existing native ad to prevent memory leaks
+                if (loadedNativeAd != null) {
+                    nativeAdLoader.destroy(loadedNativeAd);
+                }
+                loadedNativeAd = ad;
+
+                if (containerShimmer != null) {
+                    containerShimmer.stopShimmer();
+                    containerShimmer.setVisibility(View.GONE);
+                }
+                if (nativeAdLayout != null) {
+                    nativeAdLayout.setVisibility(View.VISIBLE);
+                    nativeAdLayout.removeAllViews();
+                    nativeAdLayout.addView(adView);
+                }
             }
 
             @Override
             public void onNativeAdLoadFailed(final String adUnitId, final MaxError error) {
                 Log.e(TAG, "onAdFailedToLoad: " + error.getMessage());
-                containerShimmer.stopShimmer();
-                containerShimmer.setVisibility(View.GONE);
-                nativeAdLayout.setVisibility(View.GONE);
+                if (containerShimmer != null) {
+                    containerShimmer.stopShimmer();
+                    containerShimmer.setVisibility(View.GONE);
+                }
+                if (nativeAdLayout != null) {
+                    nativeAdLayout.setVisibility(View.GONE);
+                }
             }
 
             @Override
             public void onNativeAdClicked(final MaxAd ad) {
-                Log.e(TAG, "`onNativeAdClicked`: ");
-                containerShimmer.setVisibility(View.VISIBLE);
-                containerShimmer.startShimmer();
-                nativeAdLayout.removeAllViews();
-                nativeAdLayout.setVisibility(View.GONE);
-
-                nativeAdView = new MaxNativeAdView(binder, activity);
-                nativeAdLoader.loadAd(nativeAdView);
-                if (disableAdResumeWhenClickAds)
+                Log.d(TAG, "onNativeAdClicked");
+                AmxGamLogEventManager.logClickAdsEvent(context, ad.getAdUnitId());
+                if (disableAdResumeWhenClickAds) {
                     AppOpenMax.getInstance().disableAdResumeByClickAction();
+                }
+            }
+
+            @Override
+            public void onNativeAdExpired(final MaxAd nativeAd) {
+                Log.d(TAG, "onNativeAdExpired: reloading expired ad");
+                nativeAdLoader.loadAd(createNativeAdView(activity, layoutCustomNative));
             }
         });
         nativeAdLoader.loadAd(nativeAdView);
     }
 
     public void loadNativeAd(Activity activity, ShimmerFrameLayout containerShimmer, FrameLayout nativeAdLayout, String id, int layoutCustomNative, AppLovinCallback callback) {
-
         if (AppPurchase.getInstance().isPurchased(context)) {
-            containerShimmer.setVisibility(View.GONE);
+            if (containerShimmer != null) {
+                containerShimmer.setVisibility(View.GONE);
+            }
+            if (callback != null) {
+                callback.onAdClosed();
+            }
             return;
         }
-        containerShimmer.setVisibility(View.VISIBLE);
-        containerShimmer.startShimmer();
+        if (containerShimmer != null) {
+            containerShimmer.setVisibility(View.VISIBLE);
+            containerShimmer.startShimmer();
+        }
 
-        nativeAdLayout.removeAllViews();
-        nativeAdLayout.setVisibility(View.GONE);
-        MaxNativeAdViewBinder binder = new MaxNativeAdViewBinder.Builder(layoutCustomNative)
-                .setTitleTextViewId(R.id.ad_headline)
-                .setBodyTextViewId(R.id.ad_body)
-                .setAdvertiserTextViewId(R.id.ad_advertiser)
-                .setIconImageViewId(R.id.ad_app_icon)
-                .setMediaContentViewGroupId(R.id.ad_media)
-                .setOptionsContentViewGroupId(R.id.ad_options_view)
-                .setCallToActionButtonId(R.id.ad_call_to_action)
-                .build();
+        if (nativeAdLayout != null) {
+            nativeAdLayout.removeAllViews();
+            nativeAdLayout.setVisibility(View.GONE);
+        }
 
-        nativeAdView = new MaxNativeAdView(binder, activity);
+        nativeAdView = createNativeAdView(activity, layoutCustomNative);
+        MaxNativeAdLoader nativeAdLoader = createNativeAdLoader(activity, id);
+        lastNativeAdLoader = nativeAdLoader;
 
-        MaxNativeAdLoader nativeAdLoader = new MaxNativeAdLoader(id, activity);
-        nativeAdLoader.setRevenueListener(ad -> {
-            AmxGamLogEventManager.logPaidAdImpression(activity, ad, AdType.NATIVE);
-            if (tokenAdjust != null) {
-                AmxGamLogEventManager.logPaidAdjustWithTokenMax(ad, ad.getAdUnitId(), tokenAdjust);
-            }
-        });
         nativeAdLoader.setNativeAdListener(new MaxNativeAdListener() {
             @Override
-            public void onNativeAdLoaded(final MaxNativeAdView nativeAdView, final MaxAd ad) {
-                Log.d(TAG, "onNativeAdLoaded ");
-                populateNativeAdView(nativeAdView, nativeAdLayout, containerShimmer);
-                callback.onUnifiedNativeAdLoaded(nativeAdView);
+            public void onNativeAdLoaded(final MaxNativeAdView adView, final MaxAd ad) {
+                Log.d(TAG, "onNativeAdLoaded");
+                // Destroy any pre-existing native ad to prevent memory leaks
+                if (loadedNativeAd != null) {
+                    nativeAdLoader.destroy(loadedNativeAd);
+                }
+                loadedNativeAd = ad;
+
+                if (nativeAdLayout != null && containerShimmer != null) {
+                    populateNativeAdView(adView, nativeAdLayout, containerShimmer);
+                } else {
+                    if (containerShimmer != null) {
+                        containerShimmer.stopShimmer();
+                        containerShimmer.setVisibility(View.GONE);
+                    }
+                    if (nativeAdLayout != null) {
+                        nativeAdLayout.setVisibility(View.VISIBLE);
+                        nativeAdLayout.removeAllViews();
+                        nativeAdLayout.addView(adView);
+                    }
+                }
+                if (callback != null) {
+                    callback.onNativeAdLoaded(adView, ad);
+                }
             }
 
             @Override
             public void onNativeAdLoadFailed(final String adUnitId, final MaxError error) {
                 Log.e(TAG, "onAdFailedToLoad: " + error.getMessage());
-                containerShimmer.stopShimmer();
-                containerShimmer.setVisibility(View.GONE);
-                nativeAdLayout.setVisibility(View.GONE);
+                if (containerShimmer != null) {
+                    containerShimmer.stopShimmer();
+                    containerShimmer.setVisibility(View.GONE);
+                }
+                if (nativeAdLayout != null) {
+                    nativeAdLayout.setVisibility(View.GONE);
+                }
 
-                callback.onAdFailedToLoad(error);
+                if (callback != null) {
+                    callback.onAdFailedToLoad(error);
+                }
             }
 
             @Override
             public void onNativeAdClicked(final MaxAd ad) {
-                Log.e(TAG, "`onNativeAdClicked`: ");
-                containerShimmer.setVisibility(View.VISIBLE);
-                containerShimmer.startShimmer();
-                nativeAdLayout.removeAllViews();
-                nativeAdLayout.setVisibility(View.GONE);
-
-                nativeAdView = new MaxNativeAdView(binder, activity);
-                nativeAdLoader.loadAd(nativeAdView);
+                Log.d(TAG, "onNativeAdClicked");
+                AmxGamLogEventManager.logClickAdsEvent(context, ad.getAdUnitId());
+                if (callback != null) {
+                    callback.onAdClicked();
+                }
                 if (disableAdResumeWhenClickAds) {
                     AppOpenMax.getInstance().disableAdResumeByClickAction();
                 }
+            }
 
-                callback.onAdClicked();
+            @Override
+            public void onNativeAdExpired(final MaxAd nativeAd) {
+                Log.d(TAG, "onNativeAdExpired");
+                if (callback != null) {
+                    callback.onNativeAdExpired(nativeAd);
+                }
+                nativeAdLoader.loadAd(createNativeAdView(activity, layoutCustomNative));
             }
         });
         nativeAdLoader.loadAd(nativeAdView);
     }
 
     public void populateNativeAdView(View apNativeAd, FrameLayout frAds, ShimmerFrameLayout shimmerAds) {
-        shimmerAds.stopShimmer();
-        shimmerAds.setVisibility(View.GONE);
-        frAds.setVisibility(View.VISIBLE);
-        frAds.removeAllViews();
-        if (apNativeAd.getParent() != null) {
-            ((ViewGroup) apNativeAd.getParent()).removeAllViews();
+        if (shimmerAds != null) {
+            shimmerAds.stopShimmer();
+            shimmerAds.setVisibility(View.GONE);
         }
-        frAds.addView(apNativeAd);
+        if (frAds != null) {
+            frAds.setVisibility(View.VISIBLE);
+            frAds.removeAllViews();
+            if (apNativeAd != null && apNativeAd.getParent() != null) {
+                ((ViewGroup) apNativeAd.getParent()).removeAllViews();
+            }
+            if (apNativeAd != null) {
+                frAds.addView(apNativeAd);
+            }
+        }
     }
 
     public void loadNativeAd(Activity activity, String id, int layoutCustomNative, AppLovinCallback callback) {
-
         if (AppPurchase.getInstance().isPurchased(context)) {
-            callback.onAdClosed();
+            if (callback != null) {
+                callback.onAdClosed();
+            }
             return;
         }
 
-        MaxNativeAdViewBinder binder = new MaxNativeAdViewBinder.Builder(layoutCustomNative)
-                .setTitleTextViewId(R.id.ad_headline)
-                .setBodyTextViewId(R.id.ad_body)
-                .setAdvertiserTextViewId(R.id.ad_advertiser)
-                .setIconImageViewId(R.id.ad_app_icon)
-                .setMediaContentViewGroupId(R.id.ad_media)
-                .setOptionsContentViewGroupId(R.id.ad_options_view)
-                .setCallToActionButtonId(R.id.ad_call_to_action)
-                .build();
+        nativeAdView = createNativeAdView(activity, layoutCustomNative);
+        MaxNativeAdLoader nativeAdLoader = createNativeAdLoader(activity, id);
+        lastNativeAdLoader = nativeAdLoader;
 
-        nativeAdView = new MaxNativeAdView(binder, activity);
-
-        MaxNativeAdLoader nativeAdLoader = new MaxNativeAdLoader(id, activity);
-        nativeAdLoader.setRevenueListener(ad -> {
-            AmxGamLogEventManager.logPaidAdImpression(activity, ad, AdType.NATIVE);
-            if (tokenAdjust != null) {
-                AmxGamLogEventManager.logPaidAdjustWithTokenMax(ad, ad.getAdUnitId(), tokenAdjust);
-            }
-        });
         nativeAdLoader.setNativeAdListener(new MaxNativeAdListener() {
             @Override
-            public void onNativeAdLoaded(final MaxNativeAdView nativeAdView, final MaxAd ad) {
-                Log.d(TAG, "onNativeAdLoaded ");
-                callback.onUnifiedNativeAdLoaded(nativeAdView);
+            public void onNativeAdLoaded(final MaxNativeAdView adView, final MaxAd ad) {
+                Log.d(TAG, "onNativeAdLoaded");
+                // Destroy any pre-existing native ad to prevent memory leaks
+                if (loadedNativeAd != null) {
+                    nativeAdLoader.destroy(loadedNativeAd);
+                }
+                loadedNativeAd = ad;
+                if (callback != null) {
+                    callback.onNativeAdLoaded(adView, ad);
+                }
             }
 
             @Override
             public void onNativeAdLoadFailed(final String adUnitId, final MaxError error) {
                 Log.e(TAG, "onAdFailedToLoad: " + error.getMessage());
-                callback.onAdFailedToLoad(error);
+                if (callback != null) {
+                    callback.onAdFailedToLoad(error);
+                }
             }
 
             @Override
             public void onNativeAdClicked(final MaxAd ad) {
-                Log.e(TAG, "onNativeAdClicked: ");
+                Log.d(TAG, "onNativeAdClicked");
                 AmxGamLogEventManager.logClickAdsEvent(context, ad.getAdUnitId());
-                callback.onAdClicked();
-                if (disableAdResumeWhenClickAds)
+                if (callback != null) {
+                    callback.onAdClicked();
+                }
+                if (disableAdResumeWhenClickAds) {
                     AppOpenMax.getInstance().disableAdResumeByClickAction();
+                }
+            }
+
+            @Override
+            public void onNativeAdExpired(final MaxAd nativeAd) {
+                Log.d(TAG, "onNativeAdExpired");
+                if (callback != null) {
+                    callback.onNativeAdExpired(nativeAd);
+                }
+                nativeAdLoader.loadAd(createNativeAdView(activity, layoutCustomNative));
             }
         });
         nativeAdLoader.loadAd(nativeAdView);
@@ -1140,16 +1262,6 @@ public class AppLovin {
         MaxRewardedAd rewardedAd = MaxRewardedAd.getInstance(id, activity);
         rewardedAd.setListener(new MaxRewardedAdListener() {
             @Override
-            public void onRewardedVideoStarted(MaxAd ad) {
-                Log.d(TAG, "onRewardedVideoStarted: ");
-            }
-
-            @Override
-            public void onRewardedVideoCompleted(MaxAd ad) {
-                Log.d(TAG, "onRewardedVideoCompleted: ");
-            }
-
-            @Override
             public void onUserRewarded(MaxAd ad, MaxReward reward) {
                 callback.onUserRewarded(reward);
                 Log.d(TAG, "onUserRewarded: ");
@@ -1170,6 +1282,7 @@ public class AppLovin {
             public void onAdHidden(MaxAd ad) {
                 callback.onAdClosed();
                 Log.d(TAG, "onAdHidden: ");
+                rewardedAd.loadAd();
             }
 
             @Override
@@ -1189,6 +1302,7 @@ public class AppLovin {
             @Override
             public void onAdDisplayFailed(MaxAd ad, MaxError error) {
                 Log.d(TAG, "onAdDisplayFailed: " + error.getMessage());
+                rewardedAd.loadAd();
                 callback.onAdFailedToShow(error);
             }
         });
@@ -1203,7 +1317,7 @@ public class AppLovin {
     }
 
     public void showRewardAd(Activity activity, MaxRewardedAd maxRewardedAd, AppLovinCallback callback) {
-        if (maxRewardedAd.isReady()) {
+        if (maxRewardedAd != null && maxRewardedAd.isReady()) {
             maxRewardedAd.setRevenueListener(ad -> {
                 AmxGamLogEventManager.logPaidAdImpression(activity, ad, AdType.REWARDED);
                 if (tokenAdjust != null) {
@@ -1212,42 +1326,43 @@ public class AppLovin {
             });
             maxRewardedAd.setListener(new MaxRewardedAdListener() {
                 @Override
-                public void onRewardedVideoStarted(MaxAd ad) {
-                    Log.d(TAG, "onRewardedVideoStarted: ");
-                }
-
-                @Override
-                public void onRewardedVideoCompleted(MaxAd ad) {
-                    Log.d(TAG, "onRewardedVideoCompleted: ");
-                }
-
-                @Override
                 public void onUserRewarded(MaxAd ad, MaxReward reward) {
-                    callback.onUserRewarded(reward);
+                    if (callback != null) {
+                        callback.onUserRewarded(reward);
+                    }
                     Log.d(TAG, "onUserRewarded: ");
                 }
 
                 @Override
                 public void onAdLoaded(MaxAd ad) {
                     Log.d(TAG, "onAdLoaded: ");
-                    callback.onAdLoaded();
+                    if (callback != null) {
+                        callback.onAdLoaded();
+                    }
                 }
 
                 @Override
                 public void onAdDisplayed(MaxAd ad) {
                     Log.d(TAG, "onAdDisplayed: ");
+                    AppOpenMax.getInstance().setInterstitialShowing(true);
                 }
 
                 @Override
                 public void onAdHidden(MaxAd ad) {
-                    callback.onAdClosed();
+                    AppOpenMax.getInstance().setInterstitialShowing(false);
+                    if (callback != null) {
+                        callback.onAdClosed();
+                    }
                     Log.d(TAG, "onAdHidden: ");
+                    maxRewardedAd.loadAd();
                 }
 
                 @Override
                 public void onAdClicked(MaxAd ad) {
-                    AmxGamLogEventManager.logClickAdsEvent(context, ad.getAdUnitId());
-                    callback.onAdClicked();
+                    AmxGamLogEventManager.logClickAdsEvent(context != null ? context : activity, ad.getAdUnitId());
+                    if (callback != null) {
+                        callback.onAdClicked();
+                    }
                     if (disableAdResumeWhenClickAds)
                         AppOpenMax.getInstance().disableAdResumeByClickAction();
                 }
@@ -1255,24 +1370,32 @@ public class AppLovin {
                 @Override
                 public void onAdLoadFailed(String adUnitId, MaxError error) {
                     Log.d(TAG, "onAdLoadFailed: " + error.getMessage());
-                    callback.onAdFailedToLoad(error);
+                    if (callback != null) {
+                        callback.onAdFailedToLoad(error);
+                    }
                 }
 
                 @Override
                 public void onAdDisplayFailed(MaxAd ad, MaxError error) {
                     Log.d(TAG, "onAdDisplayFailed: " + error.getMessage());
-                    callback.onAdFailedToShow(error);
+                    AppOpenMax.getInstance().setInterstitialShowing(false);
+                    maxRewardedAd.loadAd();
+                    if (callback != null) {
+                        callback.onAdFailedToShow(error);
+                    }
                 }
             });
             maxRewardedAd.showAd();
         } else {
             Log.e(TAG, "showRewardAd error -  reward ad not ready");
-            callback.onAdFailedToShow(null);
+            if (callback != null) {
+                callback.onAdFailedToShow(null);
+            }
         }
     }
 
     public void showRewardAd(Activity activity, MaxRewardedAd maxRewardedAd, String tokenAdjust) {
-        if (maxRewardedAd.isReady()) {
+        if (maxRewardedAd != null && maxRewardedAd.isReady()) {
             maxRewardedAd.setRevenueListener(ad -> {
                 AmxGamLogEventManager.logPaidAdImpression(activity, ad, AdType.REWARDED);
                 if (tokenAdjust != null) {
@@ -1283,5 +1406,125 @@ public class AppLovin {
         } else {
             Log.e(TAG, "showRewardAd error -  reward ad not ready");
         }
+    }
+
+    public void destroyInterstitial(MaxInterstitialAd interstitialAd) {
+        if (interstitialAd != null) {
+            interstitialAd.destroy();
+        }
+    }
+
+    public void destroyRewardAd(MaxRewardedAd rewardedAd) {
+        if (rewardedAd != null) {
+            rewardedAd.destroy();
+        }
+    }
+
+    public void destroyBanner(MaxAdView bannerAd) {
+        if (bannerAd != null) {
+            bannerAd.destroy();
+        }
+    }
+
+    public void destroyBanner(ViewGroup adContainer) {
+        if (adContainer != null) {
+            for (int i = 0; i < adContainer.getChildCount(); i++) {
+                View child = adContainer.getChildAt(i);
+                if (child instanceof MaxAdView) {
+                    ((MaxAdView) child).destroy();
+                }
+            }
+            adContainer.removeAllViews();
+        }
+    }
+
+    public void loadMrec(final Activity mActivity, String id, final FrameLayout adContainer, final ShimmerFrameLayout containerShimmer) {
+        loadMrec(mActivity, id, adContainer, containerShimmer, null);
+    }
+
+    public void loadMrec(final Activity mActivity, String id, final FrameLayout adContainer, final ShimmerFrameLayout containerShimmer, final AdCallback adCallback) {
+        if (AppPurchase.getInstance().isPurchased(mActivity)) {
+            if (containerShimmer != null) {
+                containerShimmer.setVisibility(View.GONE);
+            }
+            return;
+        }
+        if (containerShimmer != null) {
+            containerShimmer.setVisibility(View.VISIBLE);
+            containerShimmer.startShimmer();
+        }
+        MaxAdView adView = new MaxAdView(id, MaxAdFormat.MREC, mActivity);
+        adView.setRevenueListener(ad -> {
+            AmxGamLogEventManager.logPaidAdImpression(mActivity, ad, AdType.BANNER);
+            if (tokenAdjust != null) {
+                AmxGamLogEventManager.logPaidAdjustWithTokenMax(ad, ad.getAdUnitId(), tokenAdjust);
+            }
+        });
+        int widthPx = AppLovinSdkUtils.dpToPx(mActivity, 300);
+        int heightPx = AppLovinSdkUtils.dpToPx(mActivity, 250);
+        adView.setLayoutParams(new FrameLayout.LayoutParams(widthPx, heightPx));
+        if (adContainer != null) {
+            adContainer.removeAllViews();
+            adContainer.addView(adView);
+        }
+        adView.setListener(new MaxAdViewAdListener() {
+            @Override
+            public void onAdExpanded(MaxAd ad) {
+            }
+
+            @Override
+            public void onAdCollapsed(MaxAd ad) {
+            }
+
+            @Override
+            public void onAdLoaded(MaxAd ad) {
+                Log.d(TAG, "onAdLoaded: mrec");
+                if (containerShimmer != null) {
+                    containerShimmer.stopShimmer();
+                    containerShimmer.setVisibility(View.GONE);
+                }
+                if (adContainer != null) {
+                    adContainer.setVisibility(View.VISIBLE);
+                }
+            }
+
+            @Override
+            public void onAdDisplayed(MaxAd ad) {
+                if (adCallback != null) {
+                    adCallback.onAdImpression();
+                }
+            }
+
+            @Override
+            public void onAdHidden(MaxAd ad) {
+            }
+
+            @Override
+            public void onAdClicked(MaxAd ad) {
+                AmxGamLogEventManager.logClickAdsEvent(context != null ? context : mActivity, ad.getAdUnitId());
+                if (adCallback != null) {
+                    adCallback.onAdClicked();
+                }
+                if (disableAdResumeWhenClickAds)
+                    AppOpenMax.getInstance().disableAdResumeByClickAction();
+            }
+
+            @Override
+            public void onAdLoadFailed(String adUnitId, MaxError error) {
+                Log.e(TAG, "onAdLoadFailed: mrec " + error.getMessage() + " code:" + error.getCode());
+                if (containerShimmer != null) {
+                    containerShimmer.stopShimmer();
+                    containerShimmer.setVisibility(View.GONE);
+                }
+                if (adContainer != null) {
+                    adContainer.setVisibility(View.GONE);
+                }
+            }
+
+            @Override
+            public void onAdDisplayFailed(MaxAd ad, MaxError error) {
+            }
+        });
+        adView.loadAd();
     }
 }
