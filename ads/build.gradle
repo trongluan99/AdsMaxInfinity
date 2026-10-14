@@ -1,14 +1,8 @@
 apply plugin: 'com.android.library'
 apply plugin: 'maven-publish'
 
-
-def LIB_GROUP_ID = 'com.ads.amx'
-def LIB_ARTIFACT_ID = 'AdsMax'
-def LIB_VERSION = '1.0.0'
-
-
 android {
-    namespace 'com.ads.amx'
+    namespace 'com.ads.max'
     compileSdk 36
 
     defaultConfig {
@@ -50,16 +44,14 @@ dependencies {
     implementation 'com.google.android.gms:play-services-ads:25.5.0'
     implementation 'com.google.android.gms:play-services-ads-identifier:18.3.0'
 
-    // Mediation
-    implementation 'com.google.ads.mediation:facebook:6.22.0.1'
-    implementation 'com.google.ads.mediation:applovin:13.6.4.2'
-    implementation 'com.google.ads.mediation:vungle:7.7.8.1'
-    implementation 'com.google.ads.mediation:pangle:8.3.0.4.0'
-    implementation 'com.google.ads.mediation:mintegral:17.1.81.1'
-
     // Adjust
     implementation 'com.adjust.sdk:adjust-android:5.8.0'
     implementation 'com.android.installreferrer:installreferrer:2.2'
+
+    // Applovin SDK
+    implementation 'com.applovin:applovin-sdk:13.6.4'
+    // Google User Messaging Platform (CMP for GDPR/TCF v2.2)
+    api 'com.google.android.ump:user-messaging-platform:4.0.0'
 
     // Mediation Applovin
     implementation 'com.applovin.mediation:google-adapter:25.5.0.0'
@@ -98,22 +90,11 @@ dependencies {
 afterEvaluate {
     publishing {
         publications {
-            release(MavenPublication) {
-                from components.release
-                groupId = LIB_GROUP_ID
-                artifactId = LIB_ARTIFACT_ID
-                version = LIB_VERSION
-            }
-        }
-        repositories {
-            maven {
-                name = "Infinity"
-                allowInsecureProtocol(true)
-                url 'http://devlocal.infinitydashboard.info:8281/repository/infinity/'
-                credentials {
-                    username ossrhUsername
-                    password ossrhPassword
-                }
+            create("release", MavenPublication) {
+                from(components["release"])
+                groupId = "com.github.trongluan99"
+                artifactId = "AdsMaxInfinity"
+                version = "1.0.0"
             }
         }
     }

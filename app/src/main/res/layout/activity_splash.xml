@@ -1,26 +1,130 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="#FFFFFF">
 
-    <TextView
-        android:id="@+id/txtLoading"
+    <!-- Debug Section (Chỉ hiển thị khi BuildConfig.env_dev) -->
+    <LinearLayout
+        android:id="@+id/layoutDebug"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:background="#0D000000"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="8dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/txtDebugInfo"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="DEBUG MODE | Flavor: appDev"
+            android:textColor="#D32F2F"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_test_cmp_splash"
+                style="@style/Widget.AppCompat.Button.Borderless"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="Test CMP (EEA)"
+                android:textAllCaps="false"
+                android:textColor="#E65100"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/btn_mediation_debugger_splash"
+                style="@style/Widget.AppCompat.Button.Borderless"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginStart="4dp"
+                android:text="Mediation Debugger"
+                android:textAllCaps="false"
+                android:textColor="#1976D2"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/btn_skip_splash"
+                style="@style/Widget.AppCompat.Button.Borderless"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginStart="8dp"
+                android:text="Skip to Main >>"
+                android:textAllCaps="false"
+                android:textColor="#388E3C"
+                android:textSize="12sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_centerInParent="true"
-        android:text="loading...k" />
+        android:gravity="center_horizontal"
+        android:orientation="vertical">
 
-    <Button
-        android:id="@+id/btn_iap"
+        <ImageView
+            android:id="@+id/imgLogo"
+            android:layout_width="96dp"
+            android:layout_height="96dp"
+            android:contentDescription="@string/app_name"
+            android:src="@mipmap/ic_launcher" />
+
+        <TextView
+            android:id="@+id/txtAppName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/app_name"
+            android:textColor="#1F2937"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/txtAppSlogan"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="Welcome to Ads Max Infinity"
+            android:textColor="#6B7280"
+            android:textSize="14sp" />
+
+    </LinearLayout>
+
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="50dp"
+        android:layout_alignParentBottom="true"
         android:layout_centerHorizontal="true"
-        android:text="IAP" />
+        android:layout_marginBottom="48dp"
+        android:gravity="center_horizontal"
+        android:orientation="vertical">
 
-    <Button
-        android:id="@+id/btn_ads"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Ads" />
+        <ProgressBar
+            android:id="@+id/progressBar"
+            style="?android:attr/progressBarStyle"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:indeterminate="true" />
+
+        <TextView
+            android:id="@+id/txtLoading"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="Loading, please wait..."
+            android:textColor="#9CA3AF"
+            android:textSize="13sp" />
+
+    </LinearLayout>
+
 </RelativeLayout>

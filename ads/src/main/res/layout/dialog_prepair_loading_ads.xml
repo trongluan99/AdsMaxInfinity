@@ -8,12 +8,11 @@
     android:gravity="center"
     android:orientation="horizontal">
 
-    <com.ads.amx.gam.widget.spinkit.SpinKitView
+    <ProgressBar
         android:id="@+id/spin_kit"
-        style="@style/SpinKitView.Circle"
         android:layout_width="@dimen/_32sdp"
         android:layout_height="@dimen/_32sdp"
-        app:SpinKit_Color="#2F53FF" />
+        android:indeterminateTint="#2F53FF" />
 
 
     <TextView
