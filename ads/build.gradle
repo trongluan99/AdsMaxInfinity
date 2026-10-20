@@ -94,7 +94,7 @@ afterEvaluate {
                 from(components["release"])
                 groupId = "com.github.trongluan99"
                 artifactId = "AdsMaxInfinity"
-                version = "1.0.0"
+                version = (project.hasProperty('version') && project.property('version') != 'unspecified') ? project.property('version') : '1.0.0'
             }
         }
     }
