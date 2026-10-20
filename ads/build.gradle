@@ -61,17 +61,16 @@ dependencies {
 
     // Mediation Applovin
     implementation 'com.applovin.mediation:google-adapter:25.5.0.0'
-    implementation 'com.applovin.mediation:ironsource-adapter:9.6.1.0.0'
     implementation 'com.applovin.mediation:vungle-adapter:7.7.9.0'
     implementation 'com.applovin.mediation:facebook-adapter:6.22.0.1'
     implementation 'androidx.recyclerview:recyclerview:1.4.0'
+    implementation 'com.applovin.mediation:mintegral-adapter:17.1.81.0'
+    implementation 'com.applovin.mediation:moloco-adapter:4.13.0.0'
     implementation 'com.applovin.mediation:bytedance-adapter:8.3.0.4.1'
     implementation 'com.applovin.mediation:unityads-adapter:4.21.0.0'
-    implementation 'com.applovin.mediation:mintegral-adapter:17.1.81.0'
-    implementation 'com.applovin.mediation:fyber-adapter:8.4.7.0'
 
     implementation "androidx.lifecycle:lifecycle-extensions:2.2.0"
-    implementation "androidx.lifecycle:lifecycle-runtime:2.11.0"
+    implementation "androidx.lifecycle:lifecycle-runtime:2.8.7"
 
     implementation 'com.google.firebase:firebase-analytics:24.0.0'
 
@@ -84,12 +83,12 @@ dependencies {
     implementation 'com.google.android.gms:play-services-basement:18.12.0'
 
     //fb sdk
-    implementation 'com.facebook.android:facebook-android-sdk:18.3.0'
+    implementation 'com.facebook.android:facebook-android-sdk:19.0.0'
 
     implementation 'com.airbnb.android:lottie:6.7.1'
 
     // appsflyer
-    implementation 'com.appsflyer:af-android-sdk:7.0.1'
+    implementation 'com.appsflyer:af-android-sdk:7.0.2'
     implementation 'com.appsflyer:adrevenue:6.9.1'
 }
 
