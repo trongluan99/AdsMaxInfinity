@@ -11,7 +11,7 @@ open class AppLovinCallback {
 
     open fun onAdClosed() {}
 
-    open fun onAdFailedToLoad(i: MaxError?) {}
+    open fun onAdFailedToLoad(error: MaxError?) {}
 
     open fun onAdFailedToShow(adError: MaxError?) {}
 
