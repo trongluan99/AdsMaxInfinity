@@ -26,7 +26,7 @@ import com.applovin.mediation.MaxAdListener
 import com.applovin.mediation.MaxError
 import com.applovin.mediation.ads.MaxAppOpenAd
 import com.applovin.sdk.AppLovinSdk
-import java.util.ArrayList
+import java.util.concurrent.CopyOnWriteArrayList
 
 class AppOpenMax private constructor() : Application.ActivityLifecycleCallbacks, LifecycleObserver {
 
@@ -34,7 +34,7 @@ class AppOpenMax private constructor() : Application.ActivityLifecycleCallbacks,
     private var myApplication: Application? = null
     private var currentActivity: Activity? = null
     private var dialog: Dialog? = null
-    private val disabledAppOpenList: MutableList<Class<*>> = ArrayList()
+    private val disabledAppOpenList: MutableList<Class<*>> = CopyOnWriteArrayList()
     private var isAppResumeEnabled = true
     private var isInterstitialShowing = false
     private var disableAdResumeByClickAction = false
@@ -179,6 +179,10 @@ class AppOpenMax private constructor() : Application.ActivityLifecycleCallbacks,
         val current = currentActivity ?: return
         val openAd = appOpenAd ?: return
 
+        if (current.isFinishing || current.isDestroyed) {
+            return
+        }
+
         if (!AppLovinSdk.getInstance(app).isInitialized || AppPurchase.getInstance().isPurchased(current)) {
             return
         }
@@ -187,19 +191,22 @@ class AppOpenMax private constructor() : Application.ActivityLifecycleCallbacks,
         ) {
             try {
                 dismissDialogLoading()
-                dialog = ResumeLoadingDialog(current)
-                try {
+                if (!current.isFinishing && !current.isDestroyed) {
+                    dialog = ResumeLoadingDialog(current)
                     dialog?.show()
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                    return
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
                 Log.e(TAG, "showAdIfReady: " + e.message)
+                dialog = null
             }
             if (openAd.isReady) {
-                Handler(Looper.getMainLooper()).postDelayed({ openAd.showAd() }, 500)
+                Handler(Looper.getMainLooper()).postDelayed({
+                    val act = currentActivity
+                    if (act != null && !act.isFinishing && !act.isDestroyed && openAd.isReady) {
+                        openAd.showAd()
+                    }
+                }, 500)
             } else {
                 openAd.loadAd()
             }
@@ -246,12 +253,14 @@ class AppOpenMax private constructor() : Application.ActivityLifecycleCallbacks,
     }
 
     private fun dismissDialogLoading() {
-        if (dialog != null && dialog!!.isShowing) {
-            try {
-                dialog!!.dismiss()
-            } catch (e: Exception) {
-                e.printStackTrace()
+        try {
+            if (dialog?.isShowing == true) {
+                dialog?.dismiss()
             }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        } finally {
+            dialog = null
         }
     }
 
@@ -366,6 +375,12 @@ class AppOpenMax private constructor() : Application.ActivityLifecycleCallbacks,
 
     private fun showAdIfReady(context: Context?, adCallback: AppLovinCallback?) {
         if (context == null || !AppLovinSdk.getInstance(context).isInitialized) {
+            adCallback?.onNextAction()
+            return
+        }
+
+        val act = context as? Activity
+        if (act != null && (act.isFinishing || act.isDestroyed)) {
             adCallback?.onNextAction()
             return
         }

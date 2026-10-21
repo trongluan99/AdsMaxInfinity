@@ -17,7 +17,7 @@ class ApAdError {
 
     var message: String
         get() {
-            if (maxError != null) return maxError!!.message
+            maxError?.message?.let { return it }
             if (_message.isNotEmpty()) return _message
             return "unknown error"
         }

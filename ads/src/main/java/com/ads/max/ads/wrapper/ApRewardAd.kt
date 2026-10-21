@@ -26,6 +26,6 @@ class ApRewardAd : ApAdBase {
     }
 
     override fun isReady(): Boolean {
-        return maxReward != null && maxReward!!.isReady
+        return maxReward?.isReady == true
     }
 }

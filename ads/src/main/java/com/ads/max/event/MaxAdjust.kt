@@ -73,13 +73,17 @@ object MaxAdjust {
     @JvmStatic
     fun pushTrackEventApplovin(ad: com.applovin.mediation.MaxAd, context: Context?) {
         if (enableAdjust) {
-            val adjustAdRevenue = AdjustAdRevenue("applovin_max_sdk")
-            adjustAdRevenue.setRevenue(ad.revenue, "USD")
-            adjustAdRevenue.setAdRevenueNetwork(ad.networkName)
-            adjustAdRevenue.setAdRevenueUnit(ad.adUnitId)
-            adjustAdRevenue.setAdRevenuePlacement(ad.placement)
+            try {
+                val adjustAdRevenue = AdjustAdRevenue("applovin_max_sdk")
+                adjustAdRevenue.setRevenue(ad.revenue, "USD")
+                adjustAdRevenue.setAdRevenueNetwork(ad.networkName)
+                adjustAdRevenue.setAdRevenueUnit(ad.adUnitId)
+                adjustAdRevenue.setAdRevenuePlacement(ad.placement)
 
-            Adjust.trackAdRevenue(adjustAdRevenue)
+                Adjust.trackAdRevenue(adjustAdRevenue)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 

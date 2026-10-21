@@ -128,8 +128,14 @@ class MaxAd private constructor() {
             }
         }, enableDebugMediation, adConfig.adjustTokenTiktok)
 
-        FacebookSdk.setClientToken(adConfig.facebookClientToken)
-        FacebookSdk.sdkInitialize(context)
+        try {
+            if (!adConfig.facebookClientToken.isNullOrBlank()) {
+                FacebookSdk.setClientToken(adConfig.facebookClientToken)
+            }
+            FacebookSdk.sdkInitialize(context)
+        } catch (e: Exception) {
+            Log.e(TAG, "FacebookSdk initialization failed: ${e.message}")
+        }
     }
 
     fun setInitCallback(initCallback: MaxInitCallback) {

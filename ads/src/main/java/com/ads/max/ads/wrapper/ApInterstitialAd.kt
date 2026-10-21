@@ -19,6 +19,6 @@ class ApInterstitialAd : ApAdBase {
     }
 
     override fun isReady(): Boolean {
-        return maxInterstitialAd != null && maxInterstitialAd!!.isReady
+        return maxInterstitialAd?.isReady == true
     }
 }

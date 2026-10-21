@@ -10,30 +10,50 @@ object FirebaseAnalyticsUtil {
 
     @JvmStatic
     fun logEventWithAds(context: Context, params: Bundle?) {
-        FirebaseAnalytics.getInstance(context).logEvent("paid_ad_impression", params)
+        try {
+            FirebaseAnalytics.getInstance(context).logEvent("paid_ad_impression", params)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     @JvmStatic
     fun logPaidAdImpressionValue(context: Context, bundle: Bundle?, mediationProvider: Int) {
-        if (mediationProvider == MaxAdConfig.PROVIDER_MAX) {
-            FirebaseAnalytics.getInstance(context).logEvent("max_paid_ad_impression_value", bundle)
-        } else {
-            FirebaseAnalytics.getInstance(context).logEvent("paid_ad_impression_value", bundle)
+        try {
+            if (mediationProvider == MaxAdConfig.PROVIDER_MAX) {
+                FirebaseAnalytics.getInstance(context).logEvent("max_paid_ad_impression_value", bundle)
+            } else {
+                FirebaseAnalytics.getInstance(context).logEvent("paid_ad_impression_value", bundle)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
     @JvmStatic
     fun logClickAdsEvent(context: Context, bundle: Bundle?) {
-        FirebaseAnalytics.getInstance(context).logEvent("event_user_click_ads", bundle)
+        try {
+            FirebaseAnalytics.getInstance(context).logEvent("event_user_click_ads", bundle)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     @JvmStatic
     fun logCurrentTotalRevenueAd(context: Context, eventName: String, bundle: Bundle?) {
-        FirebaseAnalytics.getInstance(context).logEvent(eventName, bundle)
+        try {
+            FirebaseAnalytics.getInstance(context).logEvent(eventName, bundle)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     @JvmStatic
     fun logTotalRevenue001Ad(context: Context, bundle: Bundle?) {
-        FirebaseAnalytics.getInstance(context).logEvent("paid_ad_impression_value_001", bundle)
+        try {
+            FirebaseAnalytics.getInstance(context).logEvent("paid_ad_impression_value_001", bundle)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 }

@@ -29,28 +29,48 @@ object MaxLogEventManager {
 
     @JvmStatic
     fun logPaidAdImpression(context: Context, adValue: MaxAd, adType: AdType) {
-        logEventWithMaxAds(context, adValue)
-        MaxAdjust.pushTrackEventApplovin(adValue, context)
-        MaxAppsflyer.getInstance().pushTrackEventApplovin(adValue, adType)
+        try {
+            logEventWithMaxAds(context, adValue)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error logging max ads event: ${e.message}")
+        }
+        try {
+            MaxAdjust.pushTrackEventApplovin(adValue, context)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error logging adjust event: ${e.message}")
+        }
+        try {
+            MaxAppsflyer.getInstance().pushTrackEventApplovin(adValue, adType)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error logging appsflyer event: ${e.message}")
+        }
 
         // Log revenue Facebook 30/05/2024
-        val value = adValue.revenue * 26000
-        AppEventsLogger.newLogger(context).logPurchase(BigDecimal.valueOf(value), Currency.getInstance("VND"))
+        try {
+            val value = adValue.revenue * 26000
+            AppEventsLogger.newLogger(context).logPurchase(BigDecimal.valueOf(value), Currency.getInstance("VND"))
+        } catch (e: Exception) {
+            Log.e(TAG, "Error logging facebook revenue: ${e.message}")
+        }
     }
 
     @JvmStatic
     private fun logEventWithMaxAds(context: Context, impressionData: MaxAd) {
-        val mFirebaseAnalytics = FirebaseAnalytics.getInstance(context)
-        val revenue = impressionData.revenue // In USD
-        val params = Bundle().apply {
-            putString(FirebaseAnalytics.Param.AD_PLATFORM, "AppLovin")
-            putString(FirebaseAnalytics.Param.AD_SOURCE, impressionData.networkName)
-            putString(FirebaseAnalytics.Param.AD_FORMAT, impressionData.format.label)
-            putString(FirebaseAnalytics.Param.AD_UNIT_NAME, impressionData.adUnitId)
-            putDouble(FirebaseAnalytics.Param.VALUE, revenue)
-            putString(FirebaseAnalytics.Param.CURRENCY, "USD") // All Applovin revenue is sent in USD
+        try {
+            val mFirebaseAnalytics = FirebaseAnalytics.getInstance(context)
+            val revenue = impressionData.revenue // In USD
+            val params = Bundle().apply {
+                putString(FirebaseAnalytics.Param.AD_PLATFORM, "AppLovin")
+                putString(FirebaseAnalytics.Param.AD_SOURCE, impressionData.networkName ?: "")
+                putString(FirebaseAnalytics.Param.AD_FORMAT, impressionData.format?.label ?: "")
+                putString(FirebaseAnalytics.Param.AD_UNIT_NAME, impressionData.adUnitId ?: "")
+                putDouble(FirebaseAnalytics.Param.VALUE, revenue)
+                putString(FirebaseAnalytics.Param.CURRENCY, "USD") // All Applovin revenue is sent in USD
+            }
+            mFirebaseAnalytics.logEvent(FirebaseAnalytics.Event.AD_IMPRESSION, params)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in logEventWithMaxAds: ${e.message}")
         }
-        mFirebaseAnalytics.logEvent(FirebaseAnalytics.Event.AD_IMPRESSION, params)
     }
 
     @JvmStatic

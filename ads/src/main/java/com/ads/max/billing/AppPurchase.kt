@@ -165,7 +165,7 @@ class AppPurchase private constructor() {
                 billingListener.onInitBillingFinished(BillingClient.BillingResponseCode.ERROR)
             }
         }
-        handlerTimeout?.postDelayed(rdTimeout!!, timeout.toLong())
+        rdTimeout?.let { handlerTimeout?.postDelayed(it, timeout.toLong()) }
     }
 
     fun setPrice(price: String) {
@@ -416,9 +416,7 @@ class AppPurchase private constructor() {
             if (billingListener != null && isCallback && !isInitBillingFinish) {
                 isInitBillingFinish = true
                 billingListener?.onInitBillingFinished(billingResult.responseCode)
-                if (handlerTimeout != null && rdTimeout != null) {
-                    handlerTimeout?.removeCallbacks(rdTimeout!!)
-                }
+                rdTimeout?.let { handlerTimeout?.removeCallbacks(it) }
             }
         }
     }

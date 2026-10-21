@@ -153,29 +153,33 @@ class AppLovin private constructor() {
                 "AppLovin SDK Key is empty! Please configure it in MaxAdConfig, init(..., sdkKey, ...), or AndroidManifest.xml (<meta-data android:name=\"applovin.sdk.key\" .../>)"
             )
         }
-        val initConfigBuilder = AppLovinSdkInitializationConfiguration.builder(finalKey, context)
-            .setMediationProvider(AppLovinMediationProvider.MAX)
+        try {
+            val initConfigBuilder = AppLovinSdkInitializationConfiguration.builder(finalKey, context)
+                .setMediationProvider(AppLovinMediationProvider.MAX)
 
-        val adConfig = com.ads.max.ads.MaxAd.getInstance().adConfig
-        if (adConfig != null && adConfig.listDeviceTest.isNotEmpty()) {
-            val validUuids: MutableList<String> = ArrayList()
-            for (deviceId in adConfig.listDeviceTest) {
-                val formatted = formatToUuidIfPossible(deviceId)
-                if (formatted != null) {
-                    validUuids.add(formatted)
+            val adConfig = com.ads.max.ads.MaxAd.getInstance().adConfig
+            if (adConfig != null && adConfig.listDeviceTest.isNotEmpty()) {
+                val validUuids: MutableList<String> = ArrayList()
+                for (deviceId in adConfig.listDeviceTest) {
+                    val formatted = formatToUuidIfPossible(deviceId)
+                    if (formatted != null) {
+                        validUuids.add(formatted)
+                    }
+                }
+                if (validUuids.isNotEmpty()) {
+                    initConfigBuilder.setTestDeviceAdvertisingIds(validUuids)
                 }
             }
-            if (validUuids.isNotEmpty()) {
-                initConfigBuilder.setTestDeviceAdvertisingIds(validUuids)
+            val initConfig = initConfigBuilder.build()
+            AppLovinSdk.getInstance(context).initialize(initConfig) {
+                Log.d(TAG, "init: applovin success. isInitialized=" + AppLovinSdk.getInstance(context).isInitialized)
+                if (enableDebug == true) {
+                    AppLovinSdk.getInstance(context).showMediationDebugger()
+                }
+                adCallback?.initAppLovinSuccess()
             }
-        }
-        val initConfig = initConfigBuilder.build()
-        AppLovinSdk.getInstance(context).initialize(initConfig) {
-            Log.d(TAG, "init: applovin success. isInitialized=" + AppLovinSdk.getInstance(context).isInitialized)
-            if (enableDebug == true) {
-                AppLovinSdk.getInstance(context).showMediationDebugger()
-            }
-            adCallback?.initAppLovinSuccess()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error initializing AppLovin SDK: " + e.message, e)
         }
         this.tokenAdjust = tokenAdjust
         this.context = context
@@ -269,9 +273,14 @@ class AppLovin private constructor() {
         interstitialSplash = getInterstitialAds(context, id)
         Handler(Looper.getMainLooper()).postDelayed({
             // check delay show ad splash
-            if (interstitialSplash != null && interstitialSplash!!.isReady) {
+            if (interstitialSplash != null && interstitialSplash?.isReady == true) {
                 Log.i(TAG, "loadSplashInterstitialAds:show ad on delay ")
-                onShowSplash(context as Activity, adListener)
+                val act = context as? Activity
+                if (act != null && !act.isFinishing && !act.isDestroyed) {
+                    onShowSplash(act, adListener)
+                } else {
+                    adListener?.onAdClosed()
+                }
                 return@postDelayed
             }
             Log.i(TAG, "loadSplashInterstitialAds: delay validate")
@@ -283,15 +292,20 @@ class AppLovin private constructor() {
             rdTimeout = Runnable {
                 Log.e(TAG, "loadSplashInterstitialAds: on timeout")
                 isTimeout = true
-                if (interstitialSplash != null && interstitialSplash!!.isReady) {
+                if (interstitialSplash != null && interstitialSplash?.isReady == true) {
                     Log.i(TAG, "loadSplashInterstitialAds:show ad on timeout ")
-                    onShowSplash(context as Activity, adListener)
+                    val act = context as? Activity
+                    if (act != null && !act.isFinishing && !act.isDestroyed) {
+                        onShowSplash(act, adListener)
+                    } else {
+                        adListener?.onAdClosed()
+                    }
                     return@Runnable
                 }
                 adListener?.onAdClosed()
                 isShowLoadingSplash = false
             }
-            handlerTimeout?.postDelayed(rdTimeout!!, timeOut)
+            rdTimeout?.let { handlerTimeout?.postDelayed(it, timeOut) }
         }
 
         isShowLoadingSplash = true
@@ -305,8 +319,13 @@ class AppLovin private constructor() {
                 )
                 if (isTimeout) return
                 if (isTimeDelay) {
-                    onShowSplash(context as Activity, adListener)
-                    Log.i(TAG, "loadSplashInterstitialAds: show ad on loaded ")
+                    val act = context as? Activity
+                    if (act != null && !act.isFinishing && !act.isDestroyed) {
+                        onShowSplash(act, adListener)
+                        Log.i(TAG, "loadSplashInterstitialAds: show ad on loaded ")
+                    } else {
+                        adListener?.onAdClosed()
+                    }
                 }
             }
 
@@ -327,9 +346,7 @@ class AppLovin private constructor() {
                 Log.e(TAG, "onAdLoadFailed: " + error.message)
                 if (isTimeout) return
                 if (adListener != null) {
-                    if (handlerTimeout != null && rdTimeout != null) {
-                        handlerTimeout?.removeCallbacks(rdTimeout!!)
-                    }
+                    rdTimeout?.let { handlerTimeout?.removeCallbacks(it) }
                     Log.e(TAG, "loadSplashInterstitialAds: load fail " + error.message)
                     adListener.onAdFailedToLoad(error)
                 }
@@ -367,12 +384,17 @@ class AppLovin private constructor() {
         interstitialSplash = getInterstitialAds(context, id)
         Handler(Looper.getMainLooper()).postDelayed({
             // check delay show ad splash
-            if (interstitialSplash != null && interstitialSplash!!.isReady) {
+            if (interstitialSplash != null && interstitialSplash?.isReady == true) {
                 Log.i(TAG, "loadSplashInterstitialAds:show ad on delay ")
-                if (showSplashIfReady) {
-                    onShowSplash(context as Activity, adListener)
+                val act = context as? Activity
+                if (act != null && !act.isFinishing && !act.isDestroyed) {
+                    if (showSplashIfReady) {
+                        onShowSplash(act, adListener)
+                    } else {
+                        adListener?.onAdSplashReady()
+                    }
                 } else {
-                    adListener?.onAdSplashReady()
+                    adListener?.onAdClosed()
                 }
                 return@postDelayed
             }
@@ -385,19 +407,24 @@ class AppLovin private constructor() {
             rdTimeout = Runnable {
                 Log.e(TAG, "loadSplashInterstitialAds: on timeout")
                 isTimeout = true
-                if (interstitialSplash != null && interstitialSplash!!.isReady) {
+                if (interstitialSplash != null && interstitialSplash?.isReady == true) {
                     Log.i(TAG, "loadSplashInterstitialAds:show ad on timeout ")
-                    if (showSplashIfReady) {
-                        onShowSplash(context as Activity, adListener)
+                    val act = context as? Activity
+                    if (act != null && !act.isFinishing && !act.isDestroyed) {
+                        if (showSplashIfReady) {
+                            onShowSplash(act, adListener)
+                        } else {
+                            adListener?.onAdSplashReady()
+                        }
                     } else {
-                        adListener?.onAdSplashReady()
+                        adListener?.onAdClosed()
                     }
                     return@Runnable
                 }
                 adListener?.onAdClosed()
                 isShowLoadingSplash = false
             }
-            handlerTimeout?.postDelayed(rdTimeout!!, timeOut)
+            rdTimeout?.let { handlerTimeout?.postDelayed(it, timeOut) }
         }
 
         isShowLoadingSplash = true
@@ -411,12 +438,17 @@ class AppLovin private constructor() {
                 )
                 if (isTimeout) return
                 if (isTimeDelay) {
-                    if (showSplashIfReady) {
-                        onShowSplash(context as Activity, adListener)
+                    val act = context as? Activity
+                    if (act != null && !act.isFinishing && !act.isDestroyed) {
+                        if (showSplashIfReady) {
+                            onShowSplash(act, adListener)
+                        } else {
+                            adListener?.onAdSplashReady()
+                        }
+                        Log.i(TAG, "loadSplashInterstitialAds: show ad on loaded ")
                     } else {
-                        adListener?.onAdSplashReady()
+                        adListener?.onAdClosed()
                     }
-                    Log.i(TAG, "loadSplashInterstitialAds: show ad on loaded ")
                 }
             }
 
@@ -438,9 +470,7 @@ class AppLovin private constructor() {
                 Log.e(TAG, "onAdLoadFailed: " + error.message)
                 if (isTimeout) return
                 if (adListener != null) {
-                    if (handlerTimeout != null && rdTimeout != null) {
-                        handlerTimeout?.removeCallbacks(rdTimeout!!)
-                    }
+                    rdTimeout?.let { handlerTimeout?.removeCallbacks(it) }
                     Log.e(TAG, "loadSplashInterstitialAds: load fail " + error.message)
                     adListener.onAdFailedToLoad(error)
                 }
@@ -453,9 +483,7 @@ class AppLovin private constructor() {
     fun onShowSplash(activity: Activity, adListener: AppLovinCallback?) {
         isShowLoadingSplash = true
         Log.d(TAG, "onShowSplash: ")
-        if (handlerTimeout != null && rdTimeout != null) {
-            handlerTimeout?.removeCallbacks(rdTimeout!!)
-        }
+        rdTimeout?.let { handlerTimeout?.removeCallbacks(it) }
 
         adListener?.onAdLoaded()
         val currentSplash = interstitialSplash
@@ -514,13 +542,14 @@ class AppLovin private constructor() {
 
         if (ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
             try {
-                if (dialog != null && dialog!!.isShowing) {
+                if (dialog?.isShowing == true) {
                     dialog?.dismiss()
                 }
-                dialog = PrepareLoadingAdsDialog(activity)
-                if (!activity.isDestroyed) {
-                    dialog?.setCancelable(false)
-                    dialog?.show()
+                if (!activity.isDestroyed && !activity.isFinishing) {
+                    dialog = PrepareLoadingAdsDialog(activity).apply {
+                        setCancelable(false)
+                        show()
+                    }
                 }
             } catch (e: Exception) {
                 dialog = null
@@ -529,7 +558,7 @@ class AppLovin private constructor() {
                 return
             }
             Handler(Looper.getMainLooper()).postDelayed({
-                if (!activity.isDestroyed) {
+                if (!activity.isDestroyed && !activity.isFinishing) {
                     currentSplash.showAd()
                 }
             }, 800)
@@ -566,7 +595,11 @@ class AppLovin private constructor() {
             Log.d(TAG, "getInterstitialAds: ignore")
             return null
         }
-        val ad = MaxInterstitialAd(id, context as Activity)
+        val activity = context as? Activity ?: run {
+            Log.e(TAG, "getInterstitialAds: context must be an Activity")
+            return null
+        }
+        val ad = MaxInterstitialAd(id, activity)
         ad.setListener(object : MaxAdListener {
             override fun onAdLoaded(ad: MaxAd) {
                 Log.d(TAG, "onAdLoaded: getInterstitialAds")
@@ -695,27 +728,43 @@ class AppLovin private constructor() {
         if (currentClicked >= numShowAds && interstitialAd != null) {
             if (ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
                 try {
-                    if (dialog != null && dialog!!.isShowing) {
+                    if (dialog?.isShowing == true) {
                         dialog?.dismiss()
                     }
-                    dialog = PrepareLoadingAdsDialog(context)
-                    try {
-                        callback?.onInterstitialShow()
-                        dialog?.setCancelable(false)
-                        dialog?.show()
-                    } catch (e: Exception) {
-                        callback?.onAdClosed()
-                        return
+                    val act = context as? Activity
+                    if (act != null && !act.isFinishing && !act.isDestroyed) {
+                        dialog = PrepareLoadingAdsDialog(act)
+                        try {
+                            callback?.onInterstitialShow()
+                            dialog?.setCancelable(false)
+                            dialog?.show()
+                        } catch (e: Exception) {
+                            callback?.onAdClosed()
+                            return
+                        }
                     }
                 } catch (e: Exception) {
                     dialog = null
                     e.printStackTrace()
                 }
-                Handler(Looper.getMainLooper()).postDelayed({ interstitialAd.showAd() }, 800)
+                Handler(Looper.getMainLooper()).postDelayed({
+                    val act = context as? Activity
+                    if (act != null && !act.isFinishing && !act.isDestroyed) {
+                        interstitialAd.showAd()
+                    }
+                }, 800)
             }
             currentClicked = 0
         } else if (callback != null) {
-            dialog?.dismiss()
+            try {
+                if (dialog?.isShowing == true) {
+                    dialog?.dismiss()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                dialog = null
+            }
             callback.onAdClosed()
         }
     }
@@ -780,6 +829,8 @@ class AppLovin private constructor() {
         val width = ViewGroup.LayoutParams.MATCH_PARENT
         val heightPx = mActivity.resources.getDimensionPixelSize(R.dimen.banner_height)
         adView.layoutParams = FrameLayout.LayoutParams(width, heightPx)
+        (adView.parent as? ViewGroup)?.removeView(adView)
+        adContainer.removeAllViews()
         adContainer.addView(adView)
         adView.setListener(object : MaxAdViewAdListener {
             override fun onAdExpanded(ad: MaxAd) {}
@@ -839,6 +890,8 @@ class AppLovin private constructor() {
         val width = ViewGroup.LayoutParams.MATCH_PARENT
         val heightPx = mActivity.resources.getDimensionPixelSize(R.dimen.banner_height)
         adView.layoutParams = FrameLayout.LayoutParams(width, heightPx)
+        (adView.parent as? ViewGroup)?.removeView(adView)
+        adContainer.removeAllViews()
         adContainer.addView(adView)
         adView.setListener(object : MaxAdViewAdListener {
             override fun onAdExpanded(ad: MaxAd) {}
@@ -997,6 +1050,7 @@ class AppLovin private constructor() {
                 containerShimmer?.stopShimmer()
                 containerShimmer?.visibility = View.GONE
                 if (nativeAdLayout != null && adView != null) {
+                    (adView.parent as? ViewGroup)?.removeView(adView)
                     nativeAdLayout.visibility = View.VISIBLE
                     nativeAdLayout.removeAllViews()
                     nativeAdLayout.addView(adView)
@@ -1064,6 +1118,7 @@ class AppLovin private constructor() {
                     containerShimmer?.stopShimmer()
                     containerShimmer?.visibility = View.GONE
                     if (nativeAdLayout != null && adView != null) {
+                        (adView.parent as? ViewGroup)?.removeView(adView)
                         nativeAdLayout.visibility = View.VISIBLE
                         nativeAdLayout.removeAllViews()
                         nativeAdLayout.addView(adView)
