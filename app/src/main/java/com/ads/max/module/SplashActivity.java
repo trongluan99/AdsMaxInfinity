@@ -16,7 +16,7 @@ import com.applovin.sdk.AppLovinSdk;
 
 public class SplashActivity extends AppCompatActivity {
     private static final String TAG = "SplashActivity";
-    private static final String TEST_DEVICE_HASHED_ID = "0CFFB360968837ECF982C1E38F8D975F";
+    private static final String TEST_DEVICE_HASHED_ID = "F74AB1433AE9EA0486D9345C12781028";
 
     // Set false nếu bạn muốn sau khi nhận consent thì vào thẳng Main (bỏ qua Splash Ads)
     private static final boolean SHOW_OPEN_AD_SPLASH = true;

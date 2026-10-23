@@ -48,10 +48,11 @@ public class MyApplication extends AdsMultiDexApplication {
         maxAdConfig.setIdAdResume(BuildConfig.ads_open_app);
 
         listTestDevice.add("ec25f576-da9b-6ce7-4778-b268cb87e431");
+        listTestDevice.add("0572fe18-fbff-4345-8add-325721bdc4d8");
         maxAdConfig.setListDeviceTest(listTestDevice);
         maxAdConfig.setIntervalInterstitialAd(15);
 
-        MaxAd.getInstance().init(this, maxAdConfig, false);
+        MaxAd.getInstance().init(this, maxAdConfig, true);
 
         AppLovin.getInstance().setDisableAdResumeWhenClickAds(true);
         AppOpenMax.getInstance().disableAppResumeWithActivity(SplashActivity.class);
