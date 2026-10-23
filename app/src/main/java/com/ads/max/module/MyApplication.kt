@@ -43,7 +43,7 @@ class MyApplication : AdsMultiDexApplication() {
 
         maxAdConfig?.idAdResume = BuildConfig.ads_open_app
 
-        listTestDevice.add("0CFFB360968837ECF982C1E38F8D975F")
+        listTestDevice.add("0cffb360-9688-37ec-f982-c1e38f8d975f")
         maxAdConfig?.listDeviceTest = listTestDevice
         maxAdConfig?.intervalInterstitialAd = 15
 
