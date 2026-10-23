@@ -25,6 +25,7 @@
   - [6. Native Ad (Medium / Small / Custom / RecyclerView)](#6-native-ad-medium--small--custom--recyclerview)
   - [7. In-App Purchase & Subscription (Google Play Billing)](#7-in-app-purchase--subscription-google-play-billing)
   - [8. Mediation Debugger & Privacy Settings](#8-mediation-debugger--privacy-settings)
+- [🛠️ Hướng dẫn Bật Test Ads trên AppLovin MAX & Khắc phục No-Fill (204)](#-hướng-dẫn-bật-test-ads-trên-applovin-max--khắc-phục-no-fill-204)
 - [Cấu hình ProGuard](#-cấu-hình-proguard)
 - [Hỗ trợ & Đóng góp](#-hỗ-trợ--đóng-góp)
 
@@ -165,12 +166,22 @@ class MyApplication : AdsMultiDexApplication() {
         listTestDevice.add("TEST_DEVICE_UUID_OR_ID")
         maxAdConfig?.listDeviceTest = listTestDevice
 
-        // Khởi tạo SDK
-        MaxAd.getInstance().init(this, maxAdConfig, BuildConfig.DEBUG)
-
         // Cấu hình hành vi App Open Resume
         AppLovin.getInstance().setDisableAdResumeWhenClickAds(true)
         AppOpenMax.getInstance().disableAppResumeWithActivity(SplashActivity::class.java)
+    }
+
+    /**
+     * Khởi tạo MAX SDK sau khi CMP hoàn tất ở SplashActivity
+     */
+    fun initMaxAds(onInitSuccess: (() -> Unit)? = null) {
+        maxAdConfig?.let { config ->
+            MaxAd.getInstance().init(this, config, BuildConfig.DEBUG) {
+                onInitSuccess?.invoke()
+            }
+        } ?: run {
+            onInitSuccess?.invoke()
+        }
     }
 
     private fun initBilling() {
@@ -187,7 +198,10 @@ class MyApplication : AdsMultiDexApplication() {
 
 ### 1. Flow khởi động: CMP Consent & Splash Ad
 
-Mô hình chuẩn: **SplashActivity** -> **Xin quyền Consent (CMP)** -> **Load & Show Splash Ad (hoặc timeout)** -> **Vào MainActivity**.
+Mô hình chuẩn của AppLovin MAX: **SplashActivity** -> **Xin quyền Consent (CMP)** -> **Khởi tạo MAX SDK** -> **Load & Show Splash Ad (hoặc timeout)** -> **Vào MainActivity**.
+
+> **💡 Tại sao khởi tạo sau CMP?**
+> AppLovin MAX và các mạng Mediation (AdMob, Meta...) cần đọc chuỗi TCF v2 từ CMP trong `SharedPreferences` lúc khởi tạo. Việc khởi tạo sau khi CMP kết thúc giúp tránh hiện tượng "No-fill ads" và đảm bảo 100% tuân thủ chính sách GDPR tại châu Âu và Google Play.
 
 ```kotlin
 class SplashActivity : AppCompatActivity() {
@@ -203,18 +217,30 @@ class SplashActivity : AppCompatActivity() {
         val isDebugEEA = BuildConfig.DEBUG
         val resetConsent = BuildConfig.DEBUG // True để test form consent mỗi lần mở trên máy Dev
 
+        // Lấy mã test device hashed id từ Logcat (lọc từ khóa: ConsentDebugSettings)
+        val testDeviceHashedId = "YOUR_TEST_DEVICE_HASHED_ID"
+
         MaxCmpManager.getInstance().requestConsent(
             activity = this,
             enableDebugGeographyEEA = isDebugEEA,
-            testDeviceHashedId = "YOUR_TEST_DEVICE_HASHED_ID",
+            testDeviceHashedId = testDeviceHashedId,
             resetConsent = resetConsent
         ) { formError ->
             if (formError != null) {
                 Log.e("Splash", "CMP Error: ${formError.message}")
             }
 
-            // Sau khi user đồng ý hoặc hoàn thành CMP:
-            loadSplashAd()
+            // Sau khi user đồng ý hoặc hoàn thành CMP (hoặc user ở VN ngoài vùng GDPR):
+            // Khởi tạo MAX SDK -> Callback này chỉ chạy khi SDK đã khởi tạo xong 100%
+            (application as? MyApplication)?.initMaxAds {
+                if (SHOW_OPEN_AD_SPLASH && BuildConfig.ads_open_app.isNotEmpty()) {
+                    loadSplashAd()
+                } else {
+                    startMainActivity()
+                }
+            } ?: run {
+                startMainActivity()
+            }
         }
     }
 
@@ -236,6 +262,8 @@ class SplashActivity : AppCompatActivity() {
 
     private fun startMainActivity() {
         if (!isFinishing) {
+            // Đảm bảo SDK được kích hoạt nếu user bỏ qua splash
+            (application as? MyApplication)?.initMaxAds()
             startActivity(Intent(this, MainActivity::class.java))
             finish()
         }
@@ -247,9 +275,14 @@ class SplashActivity : AppCompatActivity() {
 
 ### 2. App Open Ad Resume
 
-Thư viện tự động lắng nghe vòng đời ứng dụng qua `ProcessLifecycleOwner`. Khi user rời app và quay lại, quảng cáo App Open Resume sẽ tự động được hiển thị nếu đã bật `maxAdConfig.idAdResume`.
+Thư viện tự động lắng nghe vòng đời ứng dụng qua `ProcessLifecycleOwner`. Khi user rời app và quay lại, quảng cáo App Open Resume sẽ tự động được hiển thị nếu đã cấu hình `maxAdConfig.idAdResume`.
 
-Nếu muốn bỏ qua (không hiện Resume Ad) tại một Activity cụ thể:
+#### 🛡️ Cơ chế hiển thị thông minh (Chống treo màn hình "Welcome back"):
+- **Chỉ hiển thị loading dialog khi ad đã sẵn sàng (`isReady == true`)**: Nếu quảng cáo chưa tải xong hoặc bị No-fill, thư viện sẽ **âm thầm tải ngầm trong nền** và không chặn màn hình của người dùng.
+- **Tự động đóng an toàn (Safety Timeout 1.5s)**: Tránh tối đa trường hợp dialog bị kẹt khi hệ thống load ad bị delay.
+- **Tự động đóng khi ad hiển thị (`onAdDisplayed`)**: Giúp chuyển cảnh vào quảng cáo mượt mà.
+
+Nếu muốn bỏ qua (không hiện Resume Ad) tại một Activity cụ thể (ví dụ Splash):
 ```kotlin
 AppOpenMax.getInstance().disableAppResumeWithActivity(SplashActivity::class.java)
 ```
@@ -480,6 +513,44 @@ btnPrivacySettings.setOnClickListener {
     }
 }
 ```
+
+---
+
+## 🛠️ Hướng dẫn Bật Test Ads trên AppLovin MAX & Khắc phục No-Fill (204)
+
+Rất nhiều trường hợp bạn đã gắn `device_id` vào code nhưng quảng cáo vẫn **không lên** và báo lỗi `NO_FILL (code: 204)`. Dưới đây là hướng dẫn chi tiết để khắc phục:
+
+### 1. Phân biệt rõ 2 loại Device ID
+- **Google UMP Hashed ID (`TEST_DEVICE_HASHED_ID`)**:
+  - Dùng để test popup **GDPR Consent Form** của Google UMP.
+  - Lấy mã này bằng cách mở Logcat khi vừa bật app, tìm từ khóa `ConsentDebugSettings`.
+  - **Mã này KHÔNG CÓ TÁC DỤNG bật Test Ads cho AppLovin MAX.**
+- **Google Advertising ID (GAID)**:
+  - Đây mới là mã để test quảng cáo MAX.
+  - Lấy mã: Vào **Cài đặt điện thoại** > **Google** > **Tất cả dịch vụ** > **Quảng cáo (Ads)** > Copy **Mã nhận dạng cho quảng cáo** (dạng UUID: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`).
+
+### 2. Cách bật Test Ads CHUẨN trên AppLovin Dashboard (Quan trọng nhất)
+Hàm `setTestDeviceAdvertisingIds` trong code chỉ gửi thông tin test cho riêng AppLovin, **không thể tự động ép các mạng qua Mediation (Google AdMob, Meta, Mintegral...) trả về test ads**. Nếu mạng trong waterfall không có fill, bạn sẽ nhận mã lỗi `204 (NO_FILL)`.
+
+👉 **Để chắc chắn nhận được quảng cáo Test 100%:**
+1. Truy cập [AppLovin Dashboard](https://dash.applovin.com).
+2. Vào menu **MAX** > **Mediation** > **Test Mode**.
+3. Bấm **Add Test Device**:
+   - Nhập tên máy và dán mã **GAID** (Advertising ID) lấy từ điện thoại vào.
+   - Tại mục **Select Test Network**: Chọn **AppLovin Test Network** (hoặc *Google AdMob* nếu muốn test AdMob).
+4. Bấm **Save**.
+5. Đợi 2 - 5 phút rồi mở lại app, quảng cáo Test sẽ hiển thị 100%.
+
+### 3. Kiểm tra mã lỗi bằng Mediation Debugger
+Khi gặp lỗi không lên ads, hãy mở Mediation Debugger để xem chi tiết:
+```kotlin
+AppLovinSdk.getInstance(context).showMediationDebugger()
+```
+- Vào mục **Ad Units** > Chọn Ad Unit đang gặp lỗi (Splash, Banner, Native...).
+- Bấm nút **Load Ad** tại từng mạng trung gian (Network) để xem phản hồi:
+  - **`No ad available (code: 204)`**: Do chưa bật Test Mode trên Dashboard hoặc Ad Unit mới tạo chưa kích hoạt (thường mất 30-60 phút).
+  - **`Invalid ad unit id (code: -5603)`**: Sai Ad Unit ID hoặc lệch **Package Name** giữa file `build.gradle` và ứng dụng đã đăng ký trên AppLovin Dashboard.
+  - **`Missing Adapter / SDK`** (biểu tượng màu đỏ): Chưa thêm thư viện dependency của mạng Mediation tương ứng.
 
 ---
 

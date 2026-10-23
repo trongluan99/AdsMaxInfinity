@@ -43,14 +43,25 @@ class MyApplication : AdsMultiDexApplication() {
 
         maxAdConfig?.idAdResume = BuildConfig.ads_open_app
 
-        listTestDevice.add("ec25f576-da9b-6ce7-4778-b268cb87e431")
+        listTestDevice.add("0CFFB360968837ECF982C1E38F8D975F")
         maxAdConfig?.listDeviceTest = listTestDevice
         maxAdConfig?.intervalInterstitialAd = 15
 
-        MaxAd.getInstance().init(this, maxAdConfig, false)
-
         AppLovin.getInstance().setDisableAdResumeWhenClickAds(true)
         AppOpenMax.getInstance().disableAppResumeWithActivity(SplashActivity::class.java)
+    }
+
+    /**
+     * Khởi tạo MAX SDK sau khi luồng CMP (Consent Management Platform) đã hoàn tất ở Splash
+     */
+    fun initMaxAds(onInitSuccess: (() -> Unit)? = null) {
+        maxAdConfig?.let { config ->
+            MaxAd.getInstance().init(this, config, false) {
+                onInitSuccess?.invoke()
+            }
+        } ?: run {
+            onInitSuccess?.invoke()
+        }
     }
 
     private fun initBilling() {

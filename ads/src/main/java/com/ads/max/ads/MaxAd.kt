@@ -79,11 +79,18 @@ class MaxAd private constructor() {
     }
 
     /**
+     * Kiểm tra SDK đã khởi tạo thành công chưa
+     */
+    fun isInitSuccess(): Boolean {
+        return initAdSuccess
+    }
+
+    /**
      * @param context
      * @param adConfig object used for SDK initialisation
      */
     fun init(context: Application, adConfig: MaxAdConfig) {
-        init(context, adConfig, false)
+        init(context, adConfig, false, null)
     }
 
     /**
@@ -92,8 +99,40 @@ class MaxAd private constructor() {
      * @param enableDebugMediation set show Mediation Debugger - use only for Max Mediation
      */
     fun init(context: Application, adConfig: MaxAdConfig?, enableDebugMediation: Boolean) {
+        init(context, adConfig, enableDebugMediation, null)
+    }
+
+    /**
+     * @param context
+     * @param adConfig             object used for SDK initialisation
+     * @param initCallback         callback nhận thông báo khi SDK đã hoàn tất khởi tạo
+     */
+    fun init(context: Application, adConfig: MaxAdConfig?, initCallback: MaxInitCallback?) {
+        init(context, adConfig, false, initCallback)
+    }
+
+    /**
+     * @param context
+     * @param adConfig             object used for SDK initialisation
+     * @param enableDebugMediation set show Mediation Debugger - use only for Max Mediation
+     * @param initCallback         callback nhận thông báo khi SDK đã hoàn tất khởi tạo
+     */
+    fun init(
+        context: Application,
+        adConfig: MaxAdConfig?,
+        enableDebugMediation: Boolean,
+        initCallback: MaxInitCallback?
+    ) {
         if (adConfig == null) {
             throw RuntimeException("Cant not set GamAdConfig null")
+        }
+        if (initCallback != null) {
+            this.initCallback = initCallback
+        }
+        if (initAdSuccess) {
+            Log.d(TAG, "MaxAd already initialized successfully. Triggering callback directly.")
+            this.initCallback?.initAdSuccess()
+            return
         }
         this.adConfig = adConfig
         AppOpenMax.getInstance().setApplication(context)
@@ -124,7 +163,7 @@ class MaxAd private constructor() {
                     val app = adConfig.application ?: context
                     AppOpenMax.getInstance().init(app, adConfig.idAdResume)
                 }
-                initCallback?.initAdSuccess()
+                this@MaxAd.initCallback?.initAdSuccess()
             }
         }, enableDebugMediation, adConfig.adjustTokenTiktok)
 

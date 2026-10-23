@@ -96,13 +96,19 @@ class SplashActivity : AppCompatActivity() {
                 Log.d(TAG, "CMP Consent finished. Can request ads: " + MaxCmpManager.getInstance().canRequestAds(this@SplashActivity))
             }
 
-            // Sau khi nhận consent:
-            if (SHOW_OPEN_AD_SPLASH && BuildConfig.ads_open_app.isNotEmpty()) {
-                // Load Splash Ad với timeout ngắn (3.5s), xong ad hoặc fail là vào Main
-                loadSplashAd()
-            } else {
-                // Vào thẳng MainActivity
-                startMainActivity()
+            // Sau khi nhận consent: Khởi tạo MAX SDK để đọc chuỗi TCF v2 mới nhất
+            (application as? MyApplication)?.initMaxAds {
+                if (SHOW_OPEN_AD_SPLASH && BuildConfig.ads_open_app.isNotEmpty()) {
+                    loadSplashAd()
+                } else {
+                    startMainActivity()
+                }
+            } ?: run {
+                if (SHOW_OPEN_AD_SPLASH && BuildConfig.ads_open_app.isNotEmpty()) {
+                    loadSplashAd()
+                } else {
+                    startMainActivity()
+                }
             }
         }
     }
@@ -113,7 +119,7 @@ class SplashActivity : AppCompatActivity() {
             this@SplashActivity,
             BuildConfig.ads_open_app,
             0,
-            3500, // Timeout 3.5s để user không phải đợi lâu nếu ads no-fill
+            30000,
             true,
             object : AppLovinCallback() {
                 override fun onNextAction() {
@@ -126,6 +132,7 @@ class SplashActivity : AppCompatActivity() {
 
     private fun startMainActivity() {
         if (!isFinishing) {
+            (application as? MyApplication)?.initMaxAds()
             val intent = Intent(this@SplashActivity, MainActivity::class.java)
             startActivity(intent)
             finish()

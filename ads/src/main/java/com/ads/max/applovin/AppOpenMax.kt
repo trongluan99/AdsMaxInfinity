@@ -90,6 +90,7 @@ class AppOpenMax private constructor() : Application.ActivityLifecycleCallbacks,
                 override fun onAdDisplayed(ad: MaxAd) {
                     displayAdResume = true
                     Log.d(TAG, "onAdDisplayed: ")
+                    dismissDialogLoading()
                     maxAdCallback?.onAdImpression()
                 }
 
@@ -189,6 +190,14 @@ class AppOpenMax private constructor() : Application.ActivityLifecycleCallbacks,
         if (ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
             && isNetworkAvailable()
         ) {
+            // NẾU QUẢNG CÁO CHƯA SẴN SÀNG: Chỉ âm thầm load lại trong background, TUYỆT ĐỐI không show dialog làm đơ màn hình!
+            if (!openAd.isReady) {
+                Log.d(TAG, "showAdIfReady: openAd is not ready, preloading for next time...")
+                openAd.loadAd()
+                return
+            }
+
+            // NẾU QUẢNG CÁO ĐÃ SẴN SÀNG: Mới hiển thị loading dialog và chuẩn bị show ad
             try {
                 dismissDialogLoading()
                 if (!current.isFinishing && !current.isDestroyed) {
@@ -200,16 +209,24 @@ class AppOpenMax private constructor() : Application.ActivityLifecycleCallbacks,
                 Log.e(TAG, "showAdIfReady: " + e.message)
                 dialog = null
             }
-            if (openAd.isReady) {
-                Handler(Looper.getMainLooper()).postDelayed({
-                    val act = currentActivity
-                    if (act != null && !act.isFinishing && !act.isDestroyed && openAd.isReady) {
-                        openAd.showAd()
-                    }
-                }, 500)
-            } else {
-                openAd.loadAd()
+
+            val handler = Handler(Looper.getMainLooper())
+            // Timeout an toàn: Nếu sau 1.5s vì bất kỳ lý do gì mà ad không lên thì tự tắt dialog
+            val timeoutRunnable = Runnable {
+                Log.w(TAG, "showAdIfReady: timeout showing ad, dismissing dialog")
+                dismissDialogLoading()
             }
+            handler.postDelayed(timeoutRunnable, 1500)
+
+            handler.postDelayed({
+                val act = currentActivity
+                if (act != null && !act.isFinishing && !act.isDestroyed && openAd.isReady) {
+                    openAd.showAd()
+                } else {
+                    handler.removeCallbacks(timeoutRunnable)
+                    dismissDialogLoading()
+                }
+            }, 500)
         }
     }
 
@@ -253,14 +270,21 @@ class AppOpenMax private constructor() : Application.ActivityLifecycleCallbacks,
     }
 
     private fun dismissDialogLoading() {
-        try {
-            if (dialog?.isShowing == true) {
-                dialog?.dismiss()
+        val action = Runnable {
+            try {
+                if (dialog?.isShowing == true) {
+                    dialog?.dismiss()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                dialog = null
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        } finally {
-            dialog = null
+        }
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            action.run()
+        } else {
+            Handler(Looper.getMainLooper()).post(action)
         }
     }
 
