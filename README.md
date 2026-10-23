@@ -69,7 +69,7 @@ dependencyResolutionManagement {
 
 ```groovy
 dependencies {
-    implementation 'com.github.trongluan99:AdsMaxInfinity:1.0.0'
+    implementation 'com.github.trongluan99:AdsMaxInfinity:1.4'
 }
 ```
 
