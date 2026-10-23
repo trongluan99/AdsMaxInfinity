@@ -333,7 +333,9 @@ class AppLovin private constructor() {
                 AppOpenMax.getInstance().setInterstitialShowing(true)
             }
 
-            override fun onAdHidden(ad: MaxAd) {}
+            override fun onAdHidden(ad: MaxAd) {
+                AppOpenMax.getInstance().setInterstitialShowing(false)
+            }
 
             override fun onAdClicked(ad: MaxAd) {
                 if (disableAdResumeWhenClickAds) {
@@ -456,7 +458,9 @@ class AppLovin private constructor() {
                 AppOpenMax.getInstance().setInterstitialShowing(true)
             }
 
-            override fun onAdHidden(ad: MaxAd) {}
+            override fun onAdHidden(ad: MaxAd) {
+                AppOpenMax.getInstance().setInterstitialShowing(false)
+            }
 
             override fun onAdClicked(ad: MaxAd) {
                 MaxLogEventManager.logClickAdsEvent(context, ad.adUnitId)
@@ -679,7 +683,10 @@ class AppLovin private constructor() {
             }
 
             override fun onAdHidden(ad: MaxAd) {
-                AppOpenMax.getInstance().setInterstitialShowing(false)
+                // Trì hoãn 1000ms trước khi bật lại Resume Ad để tránh race condition khi Activity resume lại
+                Handler(Looper.getMainLooper()).postDelayed({
+                    AppOpenMax.getInstance().setInterstitialShowing(false)
+                }, 1000)
                 val appCompat = context as? AppCompatActivity
                 if (callback != null && (appCompat == null || appCompat.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))) {
                     callback.onAdClosed()
@@ -727,6 +734,8 @@ class AppLovin private constructor() {
         currentClicked++
         if (currentClicked >= numShowAds && interstitialAd != null) {
             if (ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                // Tắt Ads Resume ngay từ lúc chuẩn bị hiển thị dialog loading của Interstitial
+                AppOpenMax.getInstance().setInterstitialShowing(true)
                 try {
                     if (dialog?.isShowing == true) {
                         dialog?.dismiss()
@@ -739,11 +748,13 @@ class AppLovin private constructor() {
                             dialog?.setCancelable(false)
                             dialog?.show()
                         } catch (e: Exception) {
+                            AppOpenMax.getInstance().setInterstitialShowing(false)
                             callback?.onAdClosed()
                             return
                         }
                     }
                 } catch (e: Exception) {
+                    AppOpenMax.getInstance().setInterstitialShowing(false)
                     dialog = null
                     e.printStackTrace()
                 }
@@ -1353,7 +1364,9 @@ class AppLovin private constructor() {
                 }
 
                 override fun onAdHidden(ad: MaxAd) {
-                    AppOpenMax.getInstance().setInterstitialShowing(false)
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        AppOpenMax.getInstance().setInterstitialShowing(false)
+                    }, 1000)
                     callback?.onAdClosed()
                     Log.d(TAG, "onAdHidden: ")
                     maxRewardedAd.loadAd()
