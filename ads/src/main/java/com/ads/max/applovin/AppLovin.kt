@@ -942,37 +942,46 @@ class AppLovin private constructor() {
         adView.loadAd()
     }
 
-    fun loadNative(mActivity: Activity, adUnitId: String) {
+    @JvmOverloads
+    fun loadNative(mActivity: Activity, adUnitId: String, callback: AppLovinCallback? = null) {
         val frameLayout: FrameLayout? = mActivity.findViewById(R.id.fl_adplaceholder)
         val containerShimmer: ShimmerFrameLayout? = mActivity.findViewById(R.id.shimmer_container_native)
         if (frameLayout != null && containerShimmer != null) {
-            loadNativeAd(mActivity, containerShimmer, frameLayout, adUnitId, R.layout.custom_native_max_free_size)
+            loadNativeAd(mActivity, containerShimmer, frameLayout, adUnitId, R.layout.custom_native_max_free_size, callback)
         }
     }
 
-    fun loadNativeSmall(mActivity: Activity, adUnitId: String) {
+    @JvmOverloads
+    fun loadNativeSmall(mActivity: Activity, adUnitId: String, callback: AppLovinCallback? = null) {
         val frameLayout: FrameLayout? = mActivity.findViewById(R.id.fl_adplaceholder)
         val containerShimmer: ShimmerFrameLayout? = mActivity.findViewById(R.id.shimmer_container_native)
         if (frameLayout != null && containerShimmer != null) {
-            loadNativeAd(mActivity, containerShimmer, frameLayout, adUnitId, R.layout.custom_native_max_medium)
+            loadNativeAd(mActivity, containerShimmer, frameLayout, adUnitId, R.layout.custom_native_max_medium, callback)
         }
     }
 
-    fun loadNativeFragment(mActivity: Activity, adUnitId: String, parent: View) {
+    @JvmOverloads
+    fun loadNativeFragment(mActivity: Activity, adUnitId: String, parent: View, callback: AppLovinCallback? = null) {
         val frameLayout: FrameLayout? = parent.findViewById(R.id.fl_adplaceholder)
         val containerShimmer: ShimmerFrameLayout? = parent.findViewById(R.id.shimmer_container_native)
         if (frameLayout != null && containerShimmer != null) {
-            loadNativeAd(mActivity, containerShimmer, frameLayout, adUnitId, R.layout.custom_native_max_free_size)
+            loadNativeAd(mActivity, containerShimmer, frameLayout, adUnitId, R.layout.custom_native_max_free_size, callback)
         }
     }
 
-    fun loadNativeSmallFragment(mActivity: Activity, adUnitId: String, parent: View) {
+    @JvmOverloads
+    fun loadNativeSmallFragment(mActivity: Activity, adUnitId: String, parent: View, callback: AppLovinCallback? = null) {
         val frameLayout: FrameLayout? = parent.findViewById(R.id.fl_adplaceholder)
         val containerShimmer: ShimmerFrameLayout? = parent.findViewById(R.id.shimmer_container_native)
         if (frameLayout != null && containerShimmer != null) {
-            loadNativeAd(mActivity, containerShimmer, frameLayout, adUnitId, R.layout.custom_native_max_medium)
+            loadNativeAd(mActivity, containerShimmer, frameLayout, adUnitId, R.layout.custom_native_max_medium, callback)
         }
     }
+
+    class NativeAdHolder(
+        val loader: MaxNativeAdLoader,
+        var ad: MaxAd? = null
+    )
 
     fun createNativeAdView(activity: Activity, layoutCustomNative: Int): MaxNativeAdView {
         val binder = MaxNativeAdViewBinder.Builder(layoutCustomNative)
@@ -1017,6 +1026,23 @@ class AppLovin private constructor() {
         loader?.destroy()
     }
 
+    fun destroyNativeAd(nativeAdLayout: FrameLayout?) {
+        if (nativeAdLayout == null) return
+        val holder = nativeAdLayout.getTag(R.id.fl_adplaceholder) as? NativeAdHolder
+        if (holder != null) {
+            holder.ad?.let { holder.loader.destroy(it) }
+            holder.loader.destroy()
+            nativeAdLayout.setTag(R.id.fl_adplaceholder, null)
+        }
+        nativeAdLayout.removeAllViews()
+    }
+
+    fun destroyNativeAd(parent: View?) {
+        if (parent == null) return
+        val frameLayout: FrameLayout? = parent.findViewById(R.id.fl_adplaceholder)
+        destroyNativeAd(frameLayout)
+    }
+
     fun destroyNativeAd() {
         if (lastNativeAdLoader != null) {
             if (loadedNativeAd != null) {
@@ -1035,60 +1061,7 @@ class AppLovin private constructor() {
         id: String,
         layoutCustomNative: Int
     ) {
-        val currentContext = context ?: activity
-        if (AppPurchase.getInstance().isPurchased(currentContext)) {
-            containerShimmer?.visibility = View.GONE
-            return
-        }
-        containerShimmer?.visibility = View.VISIBLE
-        containerShimmer?.startShimmer()
-
-        nativeAdLayout?.removeAllViews()
-        nativeAdLayout?.visibility = View.GONE
-
-        nativeAdView = createNativeAdView(activity, layoutCustomNative)
-        val nativeAdLoader = createNativeAdLoader(activity, id)
-        lastNativeAdLoader = nativeAdLoader
-
-        nativeAdLoader.setNativeAdListener(object : MaxNativeAdListener() {
-            override fun onNativeAdLoaded(adView: MaxNativeAdView?, ad: MaxAd) {
-                Log.d(TAG, "onNativeAdLoaded")
-                if (loadedNativeAd != null) {
-                    nativeAdLoader.destroy(loadedNativeAd)
-                }
-                loadedNativeAd = ad
-
-                containerShimmer?.stopShimmer()
-                containerShimmer?.visibility = View.GONE
-                if (nativeAdLayout != null && adView != null) {
-                    (adView.parent as? ViewGroup)?.removeView(adView)
-                    nativeAdLayout.visibility = View.VISIBLE
-                    nativeAdLayout.removeAllViews()
-                    nativeAdLayout.addView(adView)
-                }
-            }
-
-            override fun onNativeAdLoadFailed(adUnitId: String, error: MaxError) {
-                Log.e(TAG, "onAdFailedToLoad: " + error.message)
-                containerShimmer?.stopShimmer()
-                containerShimmer?.visibility = View.GONE
-                nativeAdLayout?.visibility = View.GONE
-            }
-
-            override fun onNativeAdClicked(ad: MaxAd) {
-                Log.d(TAG, "onNativeAdClicked")
-                MaxLogEventManager.logClickAdsEvent(currentContext, ad.adUnitId)
-                if (disableAdResumeWhenClickAds) {
-                    AppOpenMax.getInstance().disableAdResumeByClickAction()
-                }
-            }
-
-            override fun onNativeAdExpired(nativeAd: MaxAd) {
-                Log.d(TAG, "onNativeAdExpired: reloading expired ad")
-                nativeAdLoader.loadAd(createNativeAdView(activity, layoutCustomNative))
-            }
-        })
-        nativeAdLoader.loadAd(nativeAdView)
+        loadNativeAd(activity, containerShimmer, nativeAdLayout, id, layoutCustomNative, null)
     }
 
     fun loadNativeAd(
@@ -1105,22 +1078,37 @@ class AppLovin private constructor() {
             callback?.onAdClosed()
             return
         }
+
+        // Hủy ad cũ của riêng container này nếu trước đó đã load ad
+        if (nativeAdLayout != null) {
+            val oldHolder = nativeAdLayout.getTag(R.id.fl_adplaceholder) as? NativeAdHolder
+            if (oldHolder != null) {
+                oldHolder.ad?.let { oldHolder.loader.destroy(it) }
+                oldHolder.loader.destroy()
+                nativeAdLayout.setTag(R.id.fl_adplaceholder, null)
+            }
+        }
+
         containerShimmer?.visibility = View.VISIBLE
         containerShimmer?.startShimmer()
 
         nativeAdLayout?.removeAllViews()
         nativeAdLayout?.visibility = View.GONE
 
-        nativeAdView = createNativeAdView(activity, layoutCustomNative)
+        val nativeAdView = createNativeAdView(activity, layoutCustomNative)
         val nativeAdLoader = createNativeAdLoader(activity, id)
+        val holder = NativeAdHolder(nativeAdLoader)
+        nativeAdLayout?.setTag(R.id.fl_adplaceholder, holder)
         lastNativeAdLoader = nativeAdLoader
 
         nativeAdLoader.setNativeAdListener(object : MaxNativeAdListener() {
             override fun onNativeAdLoaded(adView: MaxNativeAdView?, ad: MaxAd) {
                 Log.d(TAG, "onNativeAdLoaded")
-                if (loadedNativeAd != null) {
-                    nativeAdLoader.destroy(loadedNativeAd)
+                // Chỉ hủy ad của chính loader này nếu có reload/expiry, không chạm vào ad của Fragment khác
+                if (holder.ad != null) {
+                    nativeAdLoader.destroy(holder.ad)
                 }
+                holder.ad = ad
                 loadedNativeAd = ad
 
                 if (nativeAdLayout != null && containerShimmer != null) {
@@ -1156,7 +1144,7 @@ class AppLovin private constructor() {
             }
 
             override fun onNativeAdExpired(nativeAd: MaxAd) {
-                Log.d(TAG, "onNativeAdExpired")
+                Log.d(TAG, "onNativeAdExpired: reloading expired ad")
                 callback?.onNativeAdExpired(nativeAd)
                 nativeAdLoader.loadAd(createNativeAdView(activity, layoutCustomNative))
             }
@@ -1188,16 +1176,18 @@ class AppLovin private constructor() {
             return
         }
 
-        nativeAdView = createNativeAdView(activity, layoutCustomNative)
+        val nativeAdView = createNativeAdView(activity, layoutCustomNative)
         val nativeAdLoader = createNativeAdLoader(activity, id)
         lastNativeAdLoader = nativeAdLoader
+        var currentAd: MaxAd? = null
 
         nativeAdLoader.setNativeAdListener(object : MaxNativeAdListener() {
             override fun onNativeAdLoaded(adView: MaxNativeAdView?, ad: MaxAd) {
                 Log.d(TAG, "onNativeAdLoaded")
-                if (loadedNativeAd != null) {
-                    nativeAdLoader.destroy(loadedNativeAd)
+                if (currentAd != null) {
+                    nativeAdLoader.destroy(currentAd)
                 }
+                currentAd = ad
                 loadedNativeAd = ad
                 callback?.onNativeAdLoaded(adView, ad)
             }
