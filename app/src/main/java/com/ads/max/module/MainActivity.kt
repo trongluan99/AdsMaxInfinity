@@ -67,6 +67,10 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+        findViewById<View>(R.id.btn_reload_native).setOnClickListener {
+            Toast.makeText(this@MainActivity, "Reloading Native Ad...", Toast.LENGTH_SHORT).show()
+            loadNativeAd()
+        }
     }
 
     /**

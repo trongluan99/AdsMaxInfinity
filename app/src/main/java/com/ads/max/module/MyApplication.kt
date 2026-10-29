@@ -39,11 +39,14 @@ class MyApplication : AdsMultiDexApplication() {
         adjustConfig.eventNamePurchase = EVENT_PURCHASE_ADJUST
         maxAdConfig?.adjustConfig = adjustConfig
         maxAdConfig?.adjustTokenTiktok = "123545"
-        maxAdConfig?.applovinSdkKey = "3N4Mt8SNhOzkQnGb9oHsRRG1ItybcZDpJWN1fVAHLdRagxP-_k_ZXVaMAdMe5Otsmp6qJSXskfsrtakfRmPAGW"
+        maxAdConfig?.applovinSdkKey = "szyUmwGA0KXmgPKVL0LcrqGVCNJUXwL6FOdJtte_WI9GRLkuJRUAxA0NXFC2gxegRxaCJk2gX1CIfIbfQBQ9wW"
 
         maxAdConfig?.idAdResume = BuildConfig.ads_open_app
 
         listTestDevice.add("0CFFB360968837ECF982C1E38F8D975F")
+        listTestDevice.add("87684781-c920-4435-907c-7e6f6162078c")
+        listTestDevice.add("ec25f576-da9b-6ce7-4778-b268cb87e431")
+        listTestDevice.add("0572fe18-fbff-4345-8add-325721bdc4d8")
         maxAdConfig?.listDeviceTest = listTestDevice
         maxAdConfig?.intervalInterstitialAd = 15
 

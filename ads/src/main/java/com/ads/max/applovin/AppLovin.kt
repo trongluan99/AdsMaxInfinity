@@ -139,7 +139,8 @@ class AppLovin private constructor() {
                 WebView.setDataDirectorySuffix(processName)
             }
         }
-        if (enableDebug == true) {
+        val adConfig = com.ads.max.ads.MaxAd.getInstance().adConfig
+        if (enableDebug == true || adConfig?.isVariantDev() == true) {
             AppLovinSdk.getInstance(context).settings.setVerboseLogging(true)
         }
         var finalKey = sdkKey
@@ -157,7 +158,6 @@ class AppLovin private constructor() {
             val initConfigBuilder = AppLovinSdkInitializationConfiguration.builder(finalKey, context)
                 .setMediationProvider(AppLovinMediationProvider.MAX)
 
-            val adConfig = com.ads.max.ads.MaxAd.getInstance().adConfig
             if (adConfig != null && adConfig.listDeviceTest.isNotEmpty()) {
                 val validUuids: MutableList<String> = ArrayList()
                 for (deviceId in adConfig.listDeviceTest) {
@@ -990,6 +990,52 @@ class AppLovin private constructor() {
     fun renderNativeAd(loader: MaxNativeAdLoader?, adView: MaxNativeAdView?, ad: MaxAd?) {
         if (loader != null && adView != null && ad != null) {
             loader.render(adView, ad)
+            adjustNativeMediaAspectRatio(adView, ad)
+        }
+    }
+
+    private fun adjustNativeMediaAspectRatio(adView: MaxNativeAdView?, ad: MaxAd?) {
+        if (adView == null) return
+        val mediaView = adView.mediaContentViewGroup ?: adView.findViewById<ViewGroup>(R.id.ad_media) ?: return
+        val rawRatio = ad?.nativeAd?.mediaContentAspectRatio ?: 0f
+        val validRatio = if (rawRatio > 0f) rawRatio else (16f / 9f)
+        Log.d(TAG, "adjustNativeMediaAspectRatio: rawRatio=$rawRatio, validRatio=$validRatio")
+
+        val lp = mediaView.layoutParams
+        if (lp is androidx.constraintlayout.widget.ConstraintLayout.LayoutParams) {
+            lp.dimensionRatio = "W,$validRatio:1"
+            mediaView.layoutParams = lp
+        }
+        fixMediaChildImageScaleType(mediaView)
+
+        adView.post {
+            val currentLp = mediaView.layoutParams
+            if (currentLp is androidx.constraintlayout.widget.ConstraintLayout.LayoutParams) {
+                val maxW = (adView.width - currentLp.marginStart - currentLp.marginEnd).coerceAtLeast(1)
+                val availH = mediaView.height.coerceAtLeast(1)
+                val targetRatio = if (maxW.toFloat() / availH.toFloat() >= validRatio) {
+                    "W,$validRatio:1"
+                } else {
+                    "H,$validRatio:1"
+                }
+                if (currentLp.dimensionRatio != targetRatio) {
+                    currentLp.dimensionRatio = targetRatio
+                    mediaView.layoutParams = currentLp
+                }
+            }
+            fixMediaChildImageScaleType(mediaView)
+        }
+    }
+
+    private fun fixMediaChildImageScaleType(viewGroup: ViewGroup) {
+        for (i in 0 until viewGroup.childCount) {
+            val child = viewGroup.getChildAt(i)
+            if (child is android.widget.ImageView) {
+                child.scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+                child.adjustViewBounds = true
+            } else if (child is ViewGroup) {
+                fixMediaChildImageScaleType(child)
+            }
         }
     }
 
@@ -1035,6 +1081,7 @@ class AppLovin private constructor() {
         nativeAdLayout?.removeAllViews()
         nativeAdLayout?.visibility = View.GONE
 
+        destroyNativeAd()
         nativeAdView = createNativeAdView(activity, layoutCustomNative)
         val nativeAdLoader = createNativeAdLoader(activity, id)
         lastNativeAdLoader = nativeAdLoader
@@ -1046,6 +1093,7 @@ class AppLovin private constructor() {
                     nativeAdLoader.destroy(loadedNativeAd)
                 }
                 loadedNativeAd = ad
+                adjustNativeMediaAspectRatio(adView, ad)
 
                 containerShimmer?.stopShimmer()
                 containerShimmer?.visibility = View.GONE
@@ -1100,6 +1148,7 @@ class AppLovin private constructor() {
         nativeAdLayout?.removeAllViews()
         nativeAdLayout?.visibility = View.GONE
 
+        destroyNativeAd()
         nativeAdView = createNativeAdView(activity, layoutCustomNative)
         val nativeAdLoader = createNativeAdLoader(activity, id)
         lastNativeAdLoader = nativeAdLoader
@@ -1111,6 +1160,7 @@ class AppLovin private constructor() {
                     nativeAdLoader.destroy(loadedNativeAd)
                 }
                 loadedNativeAd = ad
+                adjustNativeMediaAspectRatio(adView, ad)
 
                 if (nativeAdLayout != null && containerShimmer != null) {
                     populateNativeAdView(adView, nativeAdLayout, containerShimmer)
@@ -1188,6 +1238,7 @@ class AppLovin private constructor() {
                     nativeAdLoader.destroy(loadedNativeAd)
                 }
                 loadedNativeAd = ad
+                adjustNativeMediaAspectRatio(adView, ad)
                 callback?.onNativeAdLoaded(adView, ad)
             }
 

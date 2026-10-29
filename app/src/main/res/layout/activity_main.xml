@@ -58,14 +58,21 @@
                 android:id="@+id/btn_cmp_privacy"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
+                android:layout_marginBottom="8dp"
                 android:text="Privacy / CMP Settings (GDPR)" />
+
+            <Button
+                android:id="@+id/btn_reload_native"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:text="Reload Native Ad" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="8dp"
-                android:text="Native Ad:"
+                android:text="Native Ad (200dp):"
                 android:textColor="#555555"
                 android:textStyle="bold" />
 
