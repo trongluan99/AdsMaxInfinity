@@ -26,6 +26,10 @@
             android:name="com.ads.max.module.MainActivity"
             android:exported="false" />
 
+        <activity
+            android:name="com.ads.max.module.SecondActivity"
+            android:exported="false" />
+
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="@string/admod_app_id" />

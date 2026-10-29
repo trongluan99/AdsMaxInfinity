@@ -1,5 +1,6 @@
 package com.ads.max.module
 
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -41,6 +42,9 @@ class MainActivity : AppCompatActivity() {
         findViewById<View>(R.id.btn_show_reward).setOnClickListener { showRewardedAd() }
         findViewById<View>(R.id.btn_mediation_debugger).setOnClickListener {
             AppLovinSdk.getInstance(this@MainActivity).showMediationDebugger()
+        }
+        findViewById<View>(R.id.btn_open_viewpager_demo).setOnClickListener {
+            startActivity(Intent(this@MainActivity, SecondActivity::class.java))
         }
         findViewById<View>(R.id.btn_test_iap).setOnClickListener {
             AppPurchase.getInstance().setPurchaseListener(object : PurchaseListener {

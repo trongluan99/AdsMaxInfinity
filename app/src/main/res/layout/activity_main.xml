@@ -58,8 +58,16 @@
                 android:id="@+id/btn_cmp_privacy"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
+                android:layout_marginBottom="8dp"
                 android:text="Privacy / CMP Settings (GDPR)" />
+
+            <Button
+                android:id="@+id/btn_open_viewpager_demo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:backgroundTint="#2196F3"
+                android:text="Open ViewPager Demo (3 Fragments)" />
 
             <TextView
                 android:layout_width="wrap_content"

@@ -20,6 +20,7 @@ import com.ads.max.config.MaxAdConfig
 import com.ads.max.event.MaxAdjust
 import com.ads.max.event.MaxAppsflyer
 import com.ads.max.util.AppUtil
+import com.ads.max.util.SharePreferenceUtils
 import com.applovin.sdk.AppLovinCmpService
 import com.facebook.FacebookSdk
 
@@ -46,6 +47,87 @@ class MaxAd private constructor() {
             }
             return INSTANCE!!
         }
+    }
+
+    fun getOrganic(): Boolean {
+        return SharePreferenceUtils.getIsOrganic(adConfig?.application)
+    }
+
+    fun getShouldDisplayNativeOnboardingNormal1(isForceOrganic: Boolean): Boolean {
+        if (isForceOrganic) {
+            return !getOrganic()
+        }
+        return true
+    }
+
+    fun getShouldDisplayNativeOnboardingFull1(isForceOrganic: Boolean): Boolean {
+        if (isForceOrganic) {
+            return !getOrganic()
+        }
+        return true
+    }
+
+    fun getShouldDisplayNativeOnboardingFull2(isForceOrganic: Boolean): Boolean {
+        if (isForceOrganic) {
+            return !getOrganic()
+        }
+        return true
+    }
+
+    fun getShouldDisplayNativeOnboardingNormal2(isForceOrganic: Boolean): Boolean {
+        if (isForceOrganic) {
+            return !getOrganic()
+        }
+        return true
+    }
+
+    fun getShouldDisplayNativeHome(isForceOrganic: Boolean): Boolean {
+        if (isForceOrganic) {
+            return !getOrganic()
+        }
+        return true
+    }
+
+    fun getShouldDisplayNativePermission(isForceOrganic: Boolean): Boolean {
+        if (isForceOrganic) {
+            return !getOrganic()
+        }
+        return true
+    }
+
+    fun getShouldDisplayInterOnboarding(isForceOrganic: Boolean): Boolean {
+        if (isForceOrganic) {
+            return !getOrganic()
+        }
+        return true
+    }
+
+    fun getShouldDisplayNativeWelcomeBack(isForceOrganic: Boolean): Boolean {
+        if (isForceOrganic) {
+            return !getOrganic()
+        }
+        return true
+    }
+
+    fun getShouldDisplayInterWelcomeBack(isForceOrganic: Boolean): Boolean {
+        if (isForceOrganic) {
+            return !getOrganic()
+        }
+        return true
+    }
+
+    fun getShouldDisplayWidgetUninstall(isForceOrganic: Boolean): Boolean {
+        if (isForceOrganic) {
+            return !getOrganic()
+        }
+        return true
+    }
+
+    fun getShouldDisplayHighCTA(isForceOrganic: Boolean): Boolean {
+        if (isForceOrganic) {
+            return !getOrganic()
+        }
+        return true
     }
 
     /**
@@ -196,6 +278,13 @@ class MaxAd private constructor() {
         config.setOnAttributionChangedListener { attribution: AdjustAttribution ->
             Log.d(TAG_ADJUST, "Attribution callback called!")
             Log.d(TAG_ADJUST, "Attribution: $attribution")
+
+            val organic = "Organic" == attribution.trackerName ||
+                    (attribution.network != null && attribution.network.equals(
+                        "organic",
+                        ignoreCase = true
+                    ))
+            SharePreferenceUtils.setIsOrganic(adConfig?.application, organic)
         }
 
         // Set event success tracking delegate.
