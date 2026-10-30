@@ -1093,15 +1093,19 @@ class AppLovin private constructor() {
                     nativeAdLoader.destroy(loadedNativeAd)
                 }
                 loadedNativeAd = ad
-                adjustNativeMediaAspectRatio(adView, ad)
+
+                val freshView = createNativeAdView(activity, layoutCustomNative)
+                nativeAdView = freshView
+                adjustNativeMediaAspectRatio(freshView, ad)
+                nativeAdLoader.render(freshView, ad)
 
                 containerShimmer?.stopShimmer()
                 containerShimmer?.visibility = View.GONE
-                if (nativeAdLayout != null && adView != null) {
-                    (adView.parent as? ViewGroup)?.removeView(adView)
+                if (nativeAdLayout != null) {
+                    (freshView.parent as? ViewGroup)?.removeView(freshView)
                     nativeAdLayout.visibility = View.VISIBLE
                     nativeAdLayout.removeAllViews()
-                    nativeAdLayout.addView(adView)
+                    nativeAdLayout.addView(freshView)
                 }
             }
 
@@ -1122,10 +1126,10 @@ class AppLovin private constructor() {
 
             override fun onNativeAdExpired(nativeAd: MaxAd) {
                 Log.d(TAG, "onNativeAdExpired: reloading expired ad")
-                nativeAdLoader.loadAd(createNativeAdView(activity, layoutCustomNative))
+                nativeAdLoader.loadAd()
             }
         })
-        nativeAdLoader.loadAd(nativeAdView)
+        nativeAdLoader.loadAd()
     }
 
     fun loadNativeAd(
@@ -1160,21 +1164,25 @@ class AppLovin private constructor() {
                     nativeAdLoader.destroy(loadedNativeAd)
                 }
                 loadedNativeAd = ad
-                adjustNativeMediaAspectRatio(adView, ad)
+
+                val freshView = createNativeAdView(activity, layoutCustomNative)
+                nativeAdView = freshView
+                adjustNativeMediaAspectRatio(freshView, ad)
+                nativeAdLoader.render(freshView, ad)
 
                 if (nativeAdLayout != null && containerShimmer != null) {
-                    populateNativeAdView(adView, nativeAdLayout, containerShimmer)
+                    populateNativeAdView(freshView, nativeAdLayout, containerShimmer)
                 } else {
                     containerShimmer?.stopShimmer()
                     containerShimmer?.visibility = View.GONE
-                    if (nativeAdLayout != null && adView != null) {
-                        (adView.parent as? ViewGroup)?.removeView(adView)
+                    if (nativeAdLayout != null) {
+                        (freshView.parent as? ViewGroup)?.removeView(freshView)
                         nativeAdLayout.visibility = View.VISIBLE
                         nativeAdLayout.removeAllViews()
-                        nativeAdLayout.addView(adView)
+                        nativeAdLayout.addView(freshView)
                     }
                 }
-                callback?.onNativeAdLoaded(adView, ad)
+                callback?.onNativeAdLoaded(freshView, ad)
             }
 
             override fun onNativeAdLoadFailed(adUnitId: String, error: MaxError) {
@@ -1197,10 +1205,10 @@ class AppLovin private constructor() {
             override fun onNativeAdExpired(nativeAd: MaxAd) {
                 Log.d(TAG, "onNativeAdExpired")
                 callback?.onNativeAdExpired(nativeAd)
-                nativeAdLoader.loadAd(createNativeAdView(activity, layoutCustomNative))
+                nativeAdLoader.loadAd()
             }
         })
-        nativeAdLoader.loadAd(nativeAdView)
+        nativeAdLoader.loadAd()
     }
 
     fun populateNativeAdView(apNativeAd: View?, frAds: FrameLayout?, shimmerAds: ShimmerFrameLayout?) {
@@ -1238,8 +1246,11 @@ class AppLovin private constructor() {
                     nativeAdLoader.destroy(loadedNativeAd)
                 }
                 loadedNativeAd = ad
-                adjustNativeMediaAspectRatio(adView, ad)
-                callback?.onNativeAdLoaded(adView, ad)
+                val freshView = createNativeAdView(activity, layoutCustomNative)
+                nativeAdView = freshView
+                adjustNativeMediaAspectRatio(freshView, ad)
+                nativeAdLoader.render(freshView, ad)
+                callback?.onNativeAdLoaded(freshView, ad)
             }
 
             override fun onNativeAdLoadFailed(adUnitId: String, error: MaxError) {
@@ -1259,10 +1270,10 @@ class AppLovin private constructor() {
             override fun onNativeAdExpired(nativeAd: MaxAd) {
                 Log.d(TAG, "onNativeAdExpired")
                 callback?.onNativeAdExpired(nativeAd)
-                nativeAdLoader.loadAd(createNativeAdView(activity, layoutCustomNative))
+                nativeAdLoader.loadAd()
             }
         })
-        nativeAdLoader.loadAd(nativeAdView)
+        nativeAdLoader.loadAd()
     }
 
     fun getNativeRepeatAdapter(
