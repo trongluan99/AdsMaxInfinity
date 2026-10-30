@@ -63,23 +63,7 @@ class DemoTabFragment : Fragment() {
         AppLovin.getInstance().loadNativeFragment(
             requireActivity(),
             BuildConfig.ad_native,
-            view,
-            object : AppLovinCallback() {
-                override fun onNativeAdLoaded(unifiedNativeAd: MaxNativeAdView?, nativeAd: MaxAd?) {
-                    Log.d(TAG, "[$tabTitle] onNativeAdLoaded successfully!")
-                    tvStatus.text = "Ad Status: Loaded & Active (Fully Clickable)"
-                }
-
-                override fun onAdFailedToLoad(error: MaxError?) {
-                    Log.e(TAG, "[$tabTitle] onAdFailedToLoad: ${error?.message}")
-                    tvStatus.text = "Ad Status: Failed - ${error?.message}"
-                }
-
-                override fun onAdClicked() {
-                    Log.d(TAG, "[$tabTitle] onAdClicked!")
-                    Toast.makeText(context, "$tabTitle: Ad Clicked!", Toast.LENGTH_SHORT).show()
-                }
-            }
+            view
         )
     }
 
@@ -88,7 +72,7 @@ class DemoTabFragment : Fragment() {
         // Hủy an toàn ad của RIÊNG Fragment này, không ảnh hưởng đến các Fragment khác
         view?.let {
             Log.d(TAG, "[$tabTitle] onDestroyView: Destroying native ad for this tab")
-            AppLovin.getInstance().destroyNativeAd(it)
+            AppLovin.getInstance().destroyNativeAd()
         }
     }
 }

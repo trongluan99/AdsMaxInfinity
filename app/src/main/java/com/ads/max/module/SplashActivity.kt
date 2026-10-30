@@ -10,13 +10,15 @@ import androidx.appcompat.app.AppCompatActivity
 import com.ads.max.applovin.AppLovinCallback
 import com.ads.max.applovin.AppOpenMax
 import com.ads.max.cmp.MaxCmpManager
+import com.ads.max.module.SplashActivity.Companion.TEST_DEVICE_HASHED_ID
 import com.applovin.sdk.AppLovinSdk
 
 class SplashActivity : AppCompatActivity() {
 
     companion object {
         private const val TAG = "SplashActivity"
-        private const val TEST_DEVICE_HASHED_ID = "0CFFB360968837ECF982C1E38F8D975F"
+//        private const val TEST_DEVICE_HASHED_ID = "0CFFB360968837ECF982C1E38F8D975F"
+        private const val TEST_DEVICE_HASHED_ID: String = "F74AB1433AE9EA0486D9345C12781028"
 
         // Set false nếu bạn muốn sau khi nhận consent thì vào thẳng Main (bỏ qua Splash Ads)
         private const val SHOW_OPEN_AD_SPLASH = true
@@ -115,19 +117,21 @@ class SplashActivity : AppCompatActivity() {
 
     private fun loadSplashAd() {
         Log.d(TAG, "loadSplashAd: id=" + BuildConfig.ads_open_app)
-        AppOpenMax.getInstance().loadOpenMaxSplash(
-            this@SplashActivity,
-            BuildConfig.ads_open_app,
-            0,
-            30000,
-            true,
-            object : AppLovinCallback() {
-                override fun onNextAction() {
-                    super.onNextAction()
-                    startMainActivity()
-                }
-            }
-        )
+//        AppOpenMax.getInstance().loadOpenMaxSplash(
+//            this@SplashActivity,
+//            BuildConfig.ads_open_app,
+//            0,
+//            30000,
+//            true,
+//            object : AppLovinCallback() {
+//                override fun onNextAction() {
+//                    super.onNextAction()
+//                    startMainActivity()
+//                }
+//            }
+//        )
+        startMainActivity()
+
     }
 
     private fun startMainActivity() {

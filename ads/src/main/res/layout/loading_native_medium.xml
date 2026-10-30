@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/shimmer_container_native"
     android:layout_width="match_parent"
-    android:layout_height="@dimen/_130sdp"
+    android:layout_height="200dp"
 
     app:shimmer_auto_start="true"
     app:shimmer_base_color="#ccc">

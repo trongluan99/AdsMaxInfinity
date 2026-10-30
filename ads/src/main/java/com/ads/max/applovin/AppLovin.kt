@@ -139,7 +139,8 @@ class AppLovin private constructor() {
                 WebView.setDataDirectorySuffix(processName)
             }
         }
-        if (enableDebug == true) {
+        val adConfig = com.ads.max.ads.MaxAd.getInstance().adConfig
+        if (enableDebug == true || adConfig?.isVariantDev() == true) {
             AppLovinSdk.getInstance(context).settings.setVerboseLogging(true)
         }
         var finalKey = sdkKey
@@ -157,7 +158,6 @@ class AppLovin private constructor() {
             val initConfigBuilder = AppLovinSdkInitializationConfiguration.builder(finalKey, context)
                 .setMediationProvider(AppLovinMediationProvider.MAX)
 
-            val adConfig = com.ads.max.ads.MaxAd.getInstance().adConfig
             if (adConfig != null && adConfig.listDeviceTest.isNotEmpty()) {
                 val validUuids: MutableList<String> = ArrayList()
                 for (deviceId in adConfig.listDeviceTest) {
@@ -333,9 +333,7 @@ class AppLovin private constructor() {
                 AppOpenMax.getInstance().setInterstitialShowing(true)
             }
 
-            override fun onAdHidden(ad: MaxAd) {
-                AppOpenMax.getInstance().setInterstitialShowing(false)
-            }
+            override fun onAdHidden(ad: MaxAd) {}
 
             override fun onAdClicked(ad: MaxAd) {
                 if (disableAdResumeWhenClickAds) {
@@ -458,9 +456,7 @@ class AppLovin private constructor() {
                 AppOpenMax.getInstance().setInterstitialShowing(true)
             }
 
-            override fun onAdHidden(ad: MaxAd) {
-                AppOpenMax.getInstance().setInterstitialShowing(false)
-            }
+            override fun onAdHidden(ad: MaxAd) {}
 
             override fun onAdClicked(ad: MaxAd) {
                 MaxLogEventManager.logClickAdsEvent(context, ad.adUnitId)
@@ -683,10 +679,7 @@ class AppLovin private constructor() {
             }
 
             override fun onAdHidden(ad: MaxAd) {
-                // Trì hoãn 1000ms trước khi bật lại Resume Ad để tránh race condition khi Activity resume lại
-                Handler(Looper.getMainLooper()).postDelayed({
-                    AppOpenMax.getInstance().setInterstitialShowing(false)
-                }, 1000)
+                AppOpenMax.getInstance().setInterstitialShowing(false)
                 val appCompat = context as? AppCompatActivity
                 if (callback != null && (appCompat == null || appCompat.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))) {
                     callback.onAdClosed()
@@ -734,8 +727,6 @@ class AppLovin private constructor() {
         currentClicked++
         if (currentClicked >= numShowAds && interstitialAd != null) {
             if (ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
-                // Tắt Ads Resume ngay từ lúc chuẩn bị hiển thị dialog loading của Interstitial
-                AppOpenMax.getInstance().setInterstitialShowing(true)
                 try {
                     if (dialog?.isShowing == true) {
                         dialog?.dismiss()
@@ -748,13 +739,11 @@ class AppLovin private constructor() {
                             dialog?.setCancelable(false)
                             dialog?.show()
                         } catch (e: Exception) {
-                            AppOpenMax.getInstance().setInterstitialShowing(false)
                             callback?.onAdClosed()
                             return
                         }
                     }
                 } catch (e: Exception) {
-                    AppOpenMax.getInstance().setInterstitialShowing(false)
                     dialog = null
                     e.printStackTrace()
                 }
@@ -942,46 +931,37 @@ class AppLovin private constructor() {
         adView.loadAd()
     }
 
-    @JvmOverloads
-    fun loadNative(mActivity: Activity, adUnitId: String, callback: AppLovinCallback? = null) {
+    fun loadNative(mActivity: Activity, adUnitId: String) {
         val frameLayout: FrameLayout? = mActivity.findViewById(R.id.fl_adplaceholder)
         val containerShimmer: ShimmerFrameLayout? = mActivity.findViewById(R.id.shimmer_container_native)
         if (frameLayout != null && containerShimmer != null) {
-            loadNativeAd(mActivity, containerShimmer, frameLayout, adUnitId, R.layout.custom_native_max_free_size, callback)
+            loadNativeAd(mActivity, containerShimmer, frameLayout, adUnitId, R.layout.custom_native_max_free_size)
         }
     }
 
-    @JvmOverloads
-    fun loadNativeSmall(mActivity: Activity, adUnitId: String, callback: AppLovinCallback? = null) {
+    fun loadNativeSmall(mActivity: Activity, adUnitId: String) {
         val frameLayout: FrameLayout? = mActivity.findViewById(R.id.fl_adplaceholder)
         val containerShimmer: ShimmerFrameLayout? = mActivity.findViewById(R.id.shimmer_container_native)
         if (frameLayout != null && containerShimmer != null) {
-            loadNativeAd(mActivity, containerShimmer, frameLayout, adUnitId, R.layout.custom_native_max_medium, callback)
+            loadNativeAd(mActivity, containerShimmer, frameLayout, adUnitId, R.layout.custom_native_max_medium)
         }
     }
 
-    @JvmOverloads
-    fun loadNativeFragment(mActivity: Activity, adUnitId: String, parent: View, callback: AppLovinCallback? = null) {
+    fun loadNativeFragment(mActivity: Activity, adUnitId: String, parent: View) {
         val frameLayout: FrameLayout? = parent.findViewById(R.id.fl_adplaceholder)
         val containerShimmer: ShimmerFrameLayout? = parent.findViewById(R.id.shimmer_container_native)
         if (frameLayout != null && containerShimmer != null) {
-            loadNativeAd(mActivity, containerShimmer, frameLayout, adUnitId, R.layout.custom_native_max_free_size, callback)
+            loadNativeAd(mActivity, containerShimmer, frameLayout, adUnitId, R.layout.custom_native_max_free_size)
         }
     }
 
-    @JvmOverloads
-    fun loadNativeSmallFragment(mActivity: Activity, adUnitId: String, parent: View, callback: AppLovinCallback? = null) {
+    fun loadNativeSmallFragment(mActivity: Activity, adUnitId: String, parent: View) {
         val frameLayout: FrameLayout? = parent.findViewById(R.id.fl_adplaceholder)
         val containerShimmer: ShimmerFrameLayout? = parent.findViewById(R.id.shimmer_container_native)
         if (frameLayout != null && containerShimmer != null) {
-            loadNativeAd(mActivity, containerShimmer, frameLayout, adUnitId, R.layout.custom_native_max_medium, callback)
+            loadNativeAd(mActivity, containerShimmer, frameLayout, adUnitId, R.layout.custom_native_max_medium)
         }
     }
-
-    class NativeAdHolder(
-        val loader: MaxNativeAdLoader,
-        var ad: MaxAd? = null
-    )
 
     fun createNativeAdView(activity: Activity, layoutCustomNative: Int): MaxNativeAdView {
         val binder = MaxNativeAdViewBinder.Builder(layoutCustomNative)
@@ -1010,6 +990,52 @@ class AppLovin private constructor() {
     fun renderNativeAd(loader: MaxNativeAdLoader?, adView: MaxNativeAdView?, ad: MaxAd?) {
         if (loader != null && adView != null && ad != null) {
             loader.render(adView, ad)
+            adjustNativeMediaAspectRatio(adView, ad)
+        }
+    }
+
+    private fun adjustNativeMediaAspectRatio(adView: MaxNativeAdView?, ad: MaxAd?) {
+        if (adView == null) return
+        val mediaView = adView.mediaContentViewGroup ?: adView.findViewById<ViewGroup>(R.id.ad_media) ?: return
+        val rawRatio = ad?.nativeAd?.mediaContentAspectRatio ?: 0f
+        val validRatio = if (rawRatio > 0f) rawRatio else (16f / 9f)
+        Log.d(TAG, "adjustNativeMediaAspectRatio: rawRatio=$rawRatio, validRatio=$validRatio")
+
+        val lp = mediaView.layoutParams
+        if (lp is androidx.constraintlayout.widget.ConstraintLayout.LayoutParams) {
+            lp.dimensionRatio = "W,$validRatio:1"
+            mediaView.layoutParams = lp
+        }
+        fixMediaChildImageScaleType(mediaView)
+
+        adView.post {
+            val currentLp = mediaView.layoutParams
+            if (currentLp is androidx.constraintlayout.widget.ConstraintLayout.LayoutParams) {
+                val maxW = (adView.width - currentLp.marginStart - currentLp.marginEnd).coerceAtLeast(1)
+                val availH = mediaView.height.coerceAtLeast(1)
+                val targetRatio = if (maxW.toFloat() / availH.toFloat() >= validRatio) {
+                    "W,$validRatio:1"
+                } else {
+                    "H,$validRatio:1"
+                }
+                if (currentLp.dimensionRatio != targetRatio) {
+                    currentLp.dimensionRatio = targetRatio
+                    mediaView.layoutParams = currentLp
+                }
+            }
+            fixMediaChildImageScaleType(mediaView)
+        }
+    }
+
+    private fun fixMediaChildImageScaleType(viewGroup: ViewGroup) {
+        for (i in 0 until viewGroup.childCount) {
+            val child = viewGroup.getChildAt(i)
+            if (child is android.widget.ImageView) {
+                child.scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+                child.adjustViewBounds = true
+            } else if (child is ViewGroup) {
+                fixMediaChildImageScaleType(child)
+            }
         }
     }
 
@@ -1024,23 +1050,6 @@ class AppLovin private constructor() {
 
     fun destroyNativeAd(loader: MaxNativeAdLoader?) {
         loader?.destroy()
-    }
-
-    fun destroyNativeAd(nativeAdLayout: FrameLayout?) {
-        if (nativeAdLayout == null) return
-        val holder = nativeAdLayout.getTag(R.id.fl_adplaceholder) as? NativeAdHolder
-        if (holder != null) {
-            holder.ad?.let { holder.loader.destroy(it) }
-            holder.loader.destroy()
-            nativeAdLayout.setTag(R.id.fl_adplaceholder, null)
-        }
-        nativeAdLayout.removeAllViews()
-    }
-
-    fun destroyNativeAd(parent: View?) {
-        if (parent == null) return
-        val frameLayout: FrameLayout? = parent.findViewById(R.id.fl_adplaceholder)
-        destroyNativeAd(frameLayout)
     }
 
     fun destroyNativeAd() {
@@ -1061,7 +1070,62 @@ class AppLovin private constructor() {
         id: String,
         layoutCustomNative: Int
     ) {
-        loadNativeAd(activity, containerShimmer, nativeAdLayout, id, layoutCustomNative, null)
+        val currentContext = context ?: activity
+        if (AppPurchase.getInstance().isPurchased(currentContext)) {
+            containerShimmer?.visibility = View.GONE
+            return
+        }
+        containerShimmer?.visibility = View.VISIBLE
+        containerShimmer?.startShimmer()
+
+        nativeAdLayout?.removeAllViews()
+        nativeAdLayout?.visibility = View.GONE
+
+        destroyNativeAd()
+        nativeAdView = createNativeAdView(activity, layoutCustomNative)
+        val nativeAdLoader = createNativeAdLoader(activity, id)
+        lastNativeAdLoader = nativeAdLoader
+
+        nativeAdLoader.setNativeAdListener(object : MaxNativeAdListener() {
+            override fun onNativeAdLoaded(adView: MaxNativeAdView?, ad: MaxAd) {
+                Log.d(TAG, "onNativeAdLoaded")
+                if (loadedNativeAd != null) {
+                    nativeAdLoader.destroy(loadedNativeAd)
+                }
+                loadedNativeAd = ad
+                adjustNativeMediaAspectRatio(adView, ad)
+
+                containerShimmer?.stopShimmer()
+                containerShimmer?.visibility = View.GONE
+                if (nativeAdLayout != null && adView != null) {
+                    (adView.parent as? ViewGroup)?.removeView(adView)
+                    nativeAdLayout.visibility = View.VISIBLE
+                    nativeAdLayout.removeAllViews()
+                    nativeAdLayout.addView(adView)
+                }
+            }
+
+            override fun onNativeAdLoadFailed(adUnitId: String, error: MaxError) {
+                Log.e(TAG, "onAdFailedToLoad: " + error.message)
+                containerShimmer?.stopShimmer()
+                containerShimmer?.visibility = View.GONE
+                nativeAdLayout?.visibility = View.GONE
+            }
+
+            override fun onNativeAdClicked(ad: MaxAd) {
+                Log.d(TAG, "onNativeAdClicked")
+                MaxLogEventManager.logClickAdsEvent(currentContext, ad.adUnitId)
+                if (disableAdResumeWhenClickAds) {
+                    AppOpenMax.getInstance().disableAdResumeByClickAction()
+                }
+            }
+
+            override fun onNativeAdExpired(nativeAd: MaxAd) {
+                Log.d(TAG, "onNativeAdExpired: reloading expired ad")
+                nativeAdLoader.loadAd(createNativeAdView(activity, layoutCustomNative))
+            }
+        })
+        nativeAdLoader.loadAd(nativeAdView)
     }
 
     fun loadNativeAd(
@@ -1078,38 +1142,25 @@ class AppLovin private constructor() {
             callback?.onAdClosed()
             return
         }
-
-        // Hủy ad cũ của riêng container này nếu trước đó đã load ad
-        if (nativeAdLayout != null) {
-            val oldHolder = nativeAdLayout.getTag(R.id.fl_adplaceholder) as? NativeAdHolder
-            if (oldHolder != null) {
-                oldHolder.ad?.let { oldHolder.loader.destroy(it) }
-                oldHolder.loader.destroy()
-                nativeAdLayout.setTag(R.id.fl_adplaceholder, null)
-            }
-        }
-
         containerShimmer?.visibility = View.VISIBLE
         containerShimmer?.startShimmer()
 
         nativeAdLayout?.removeAllViews()
         nativeAdLayout?.visibility = View.GONE
 
-        val nativeAdView = createNativeAdView(activity, layoutCustomNative)
+        destroyNativeAd()
+        nativeAdView = createNativeAdView(activity, layoutCustomNative)
         val nativeAdLoader = createNativeAdLoader(activity, id)
-        val holder = NativeAdHolder(nativeAdLoader)
-        nativeAdLayout?.setTag(R.id.fl_adplaceholder, holder)
         lastNativeAdLoader = nativeAdLoader
 
         nativeAdLoader.setNativeAdListener(object : MaxNativeAdListener() {
             override fun onNativeAdLoaded(adView: MaxNativeAdView?, ad: MaxAd) {
                 Log.d(TAG, "onNativeAdLoaded")
-                // Chỉ hủy ad của chính loader này nếu có reload/expiry, không chạm vào ad của Fragment khác
-                if (holder.ad != null) {
-                    nativeAdLoader.destroy(holder.ad)
+                if (loadedNativeAd != null) {
+                    nativeAdLoader.destroy(loadedNativeAd)
                 }
-                holder.ad = ad
                 loadedNativeAd = ad
+                adjustNativeMediaAspectRatio(adView, ad)
 
                 if (nativeAdLayout != null && containerShimmer != null) {
                     populateNativeAdView(adView, nativeAdLayout, containerShimmer)
@@ -1144,7 +1195,7 @@ class AppLovin private constructor() {
             }
 
             override fun onNativeAdExpired(nativeAd: MaxAd) {
-                Log.d(TAG, "onNativeAdExpired: reloading expired ad")
+                Log.d(TAG, "onNativeAdExpired")
                 callback?.onNativeAdExpired(nativeAd)
                 nativeAdLoader.loadAd(createNativeAdView(activity, layoutCustomNative))
             }
@@ -1176,19 +1227,18 @@ class AppLovin private constructor() {
             return
         }
 
-        val nativeAdView = createNativeAdView(activity, layoutCustomNative)
+        nativeAdView = createNativeAdView(activity, layoutCustomNative)
         val nativeAdLoader = createNativeAdLoader(activity, id)
         lastNativeAdLoader = nativeAdLoader
-        var currentAd: MaxAd? = null
 
         nativeAdLoader.setNativeAdListener(object : MaxNativeAdListener() {
             override fun onNativeAdLoaded(adView: MaxNativeAdView?, ad: MaxAd) {
                 Log.d(TAG, "onNativeAdLoaded")
-                if (currentAd != null) {
-                    nativeAdLoader.destroy(currentAd)
+                if (loadedNativeAd != null) {
+                    nativeAdLoader.destroy(loadedNativeAd)
                 }
-                currentAd = ad
                 loadedNativeAd = ad
+                adjustNativeMediaAspectRatio(adView, ad)
                 callback?.onNativeAdLoaded(adView, ad)
             }
 
@@ -1354,9 +1404,7 @@ class AppLovin private constructor() {
                 }
 
                 override fun onAdHidden(ad: MaxAd) {
-                    Handler(Looper.getMainLooper()).postDelayed({
-                        AppOpenMax.getInstance().setInterstitialShowing(false)
-                    }, 1000)
+                    AppOpenMax.getInstance().setInterstitialShowing(false)
                     callback?.onAdClosed()
                     Log.d(TAG, "onAdHidden: ")
                     maxRewardedAd.loadAd()

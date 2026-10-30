@@ -8,7 +8,7 @@ android {
     compileSdk 36
 
     defaultConfig {
-        applicationId "com.ads.max.module"
+        applicationId "com.pdfviewer.allinone.reader.app"
         minSdk 24
         targetSdk 36
         versionCode 1
@@ -35,9 +35,9 @@ android {
             buildConfigField "String", "ad_reward", "\"5ac0003d6da0d104\""
             buildConfigField "String", "ad_reward_inter", "\"5ac0003d6da0d104\""
             buildConfigField "String", "ad_appopen_resume", "\"c630fe3686063741\""
-            buildConfigField "String", "ad_native", "\"b8f6f81612cddf23\""
+            buildConfigField "String", "ad_native", "\"c7ade6e69facbf3b\""
             buildConfigField "String", "ads_open_app", "\"c630fe3686063741\""
-            buildConfigField "Boolean", "env_dev", "true"
+            buildConfigField "Boolean", "env_dev", "false"
 
         }
         appProd {
@@ -48,7 +48,7 @@ android {
             buildConfigField "String", "ad_reward", "\"5ac0003d6da0d104\""
             buildConfigField "String", "ad_reward_inter", "\"5ac0003d6da0d104\""
             buildConfigField "String", "ad_appopen_resume", "\"c630fe3686063741\""
-            buildConfigField "String", "ad_native", "\"b8f6f81612cddf23\""
+            buildConfigField "String", "ad_native", "\"c7ade6e69facbf3b\""
             buildConfigField "String", "ads_open_app", "\"c630fe3686063741\""
             buildConfigField "Boolean", "env_dev", "false"
         }
