@@ -48,6 +48,8 @@ import com.applovin.sdk.AppLovinSdkUtils
 import com.facebook.shimmer.ShimmerFrameLayout
 import java.util.ArrayList
 import java.util.Calendar
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 
 class AppLovin private constructor() {
 
@@ -73,6 +75,10 @@ class AppLovin private constructor() {
 
     private var tokenAdjust: String? = null
     private var disableAdResumeWhenClickAds = false
+
+    private val interRetryAttemptMap = ConcurrentHashMap<String, Int>()
+    private val interRetryRunnables = ConcurrentHashMap<String, Runnable>()
+    private val interRetryHandler = Handler(Looper.getMainLooper())
 
     companion object {
         private const val TAG = "AppLovin"
@@ -312,6 +318,7 @@ class AppLovin private constructor() {
 
         interstitialSplash?.setListener(object : MaxAdListener {
             override fun onAdLoaded(ad: MaxAd) {
+                resetInterstitialRetryAttempt(ad.adUnitId)
                 Log.e(
                     TAG, "loadSplashInterstitialAds end time loading success: "
                             + Calendar.getInstance().timeInMillis
@@ -431,6 +438,7 @@ class AppLovin private constructor() {
 
         interstitialSplash?.setListener(object : MaxAdListener {
             override fun onAdLoaded(ad: MaxAd) {
+                resetInterstitialRetryAttempt(ad.adUnitId)
                 Log.e(
                     TAG, "loadSplashInterstitialAds end time loading success: "
                             + Calendar.getInstance().timeInMillis
@@ -587,10 +595,68 @@ class AppLovin private constructor() {
         }
     }
 
+    private fun getActivityFromContext(context: Context?): Activity? {
+        var ctx = context
+        while (ctx is android.content.ContextWrapper) {
+            if (ctx is Activity) return ctx
+            ctx = ctx.baseContext
+        }
+        return null
+    }
+
+    private fun retryLoadInterstitial(ad: MaxInterstitialAd?, context: Context) {
+        if (ad == null) return
+        val adUnitId = ad.adUnitId
+
+        // Remove any previously scheduled retry for this ad unit
+        interRetryRunnables.remove(adUnitId)?.let { runnable ->
+            interRetryHandler.removeCallbacks(runnable)
+        }
+
+        val currentAttempt = (interRetryAttemptMap[adUnitId] ?: 0) + 1
+        interRetryAttemptMap[adUnitId] = currentAttempt
+
+        val delaySeconds = Math.pow(2.0, Math.min(6, currentAttempt).toDouble()).toLong()
+        val delayMillis = TimeUnit.SECONDS.toMillis(delaySeconds)
+        Log.d(TAG, "retryLoadInterstitial: attempt=$currentAttempt, delay=${delaySeconds}s for $adUnitId")
+
+        val retryRunnable = Runnable {
+            interRetryRunnables.remove(adUnitId)
+            val act = getActivityFromContext(context)
+            if (act != null && (act.isFinishing || act.isDestroyed)) {
+                Log.d(TAG, "retryLoadInterstitial: Activity finished or destroyed, cancel retry for $adUnitId")
+                interRetryAttemptMap.remove(adUnitId)
+                return@Runnable
+            }
+            if (!ad.isReady) {
+                Log.d(TAG, "retryLoadInterstitial: reloading adUnitId=$adUnitId (attempt $currentAttempt)")
+                ad.loadAd()
+            } else {
+                Log.d(TAG, "retryLoadInterstitial: ad already ready, skip reload")
+                resetInterstitialRetryAttempt(adUnitId)
+            }
+        }
+
+        interRetryRunnables[adUnitId] = retryRunnable
+        interRetryHandler.postDelayed(retryRunnable, delayMillis)
+    }
+
+    private fun resetInterstitialRetryAttempt(adUnitId: String) {
+        interRetryAttemptMap[adUnitId] = 0
+        interRetryRunnables.remove(adUnitId)?.let { runnable ->
+            interRetryHandler.removeCallbacks(runnable)
+        }
+    }
+
     /**
      * Trả về 1 InterstitialAd và request Ads
      */
-    fun getInterstitialAds(context: Context, id: String): MaxInterstitialAd? {
+    @JvmOverloads
+    fun getInterstitialAds(
+        context: Context,
+        id: String,
+        adCallback: AppLovinCallback? = null
+    ): MaxInterstitialAd? {
         if (AppPurchase.getInstance().isPurchased(context) || AppLovinHelper.getNumClickAdsPerDay(context, id) >= maxClickAds) {
             Log.d(TAG, "getInterstitialAds: ignore")
             return null
@@ -599,28 +665,42 @@ class AppLovin private constructor() {
             Log.e(TAG, "getInterstitialAds: context must be an Activity")
             return null
         }
+        resetInterstitialRetryAttempt(id)
         val ad = MaxInterstitialAd(id, activity)
         ad.setListener(object : MaxAdListener {
-            override fun onAdLoaded(ad: MaxAd) {
-                Log.d(TAG, "onAdLoaded: getInterstitialAds")
+            override fun onAdLoaded(maxAd: MaxAd) {
+                Log.d(TAG, "onAdLoaded: getInterstitialAds adUnitId=${maxAd.adUnitId}")
+                resetInterstitialRetryAttempt(maxAd.adUnitId)
+                adCallback?.onInterstitialLoad(ad)
+                adCallback?.onAdLoaded()
             }
 
-            override fun onAdDisplayed(ad: MaxAd) {}
+            override fun onAdDisplayed(maxAd: MaxAd) {
+                adCallback?.onAdDisplayed()
+            }
 
-            override fun onAdHidden(ad: MaxAd) {}
+            override fun onAdHidden(maxAd: MaxAd) {
+                adCallback?.onAdClosed()
+            }
 
-            override fun onAdClicked(ad: MaxAd) {
-                MaxLogEventManager.logClickAdsEvent(context, ad.adUnitId)
+            override fun onAdClicked(maxAd: MaxAd) {
+                MaxLogEventManager.logClickAdsEvent(context, maxAd.adUnitId)
                 if (disableAdResumeWhenClickAds) {
                     AppOpenMax.getInstance().disableAdResumeByClickAction()
                 }
+                adCallback?.onAdClicked()
             }
 
             override fun onAdLoadFailed(adUnitId: String, error: MaxError) {
-                Log.e(TAG, "onAdLoadFailed: getInterstitialAds " + error.message)
+                Log.e(TAG, "onAdLoadFailed: getInterstitialAds adUnitId=$adUnitId - ${error.message}")
+                adCallback?.onAdFailedToLoad(error)
+                retryLoadInterstitial(ad, context)
             }
 
-            override fun onAdDisplayFailed(ad: MaxAd, error: MaxError) {}
+            override fun onAdDisplayFailed(maxAd: MaxAd, error: MaxError) {
+                Log.e(TAG, "onAdDisplayFailed: getInterstitialAds adUnitId=${maxAd.adUnitId} - ${error.message}")
+                adCallback?.onAdDisplayFailed()
+            }
         })
         requestInterstitialAds(ad)
         return ad
@@ -671,7 +751,10 @@ class AppLovin private constructor() {
             }
         }
         interstitialAd.setListener(object : MaxAdListener {
-            override fun onAdLoaded(ad: MaxAd) {}
+            override fun onAdLoaded(ad: MaxAd) {
+                Log.d(TAG, "onAdLoaded: showInterstitialAdByTimes - adUnitId: ${ad.adUnitId}")
+                resetInterstitialRetryAttempt(ad.adUnitId)
+            }
 
             override fun onAdDisplayed(ad: MaxAd) {
                 AppOpenMax.getInstance().setInterstitialShowing(true)
@@ -683,11 +766,11 @@ class AppLovin private constructor() {
                 val appCompat = context as? AppCompatActivity
                 if (callback != null && (appCompat == null || appCompat.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))) {
                     callback.onAdClosed()
-                    if (shouldReloadAds) {
-                        requestInterstitialAds(interstitialAd)
-                    }
-                    dialog?.dismiss()
                 }
+                if (shouldReloadAds) {
+                    requestInterstitialAds(interstitialAd)
+                }
+                dialog?.dismiss()
                 Log.d(TAG, "onAdHidden: " + appCompat?.lifecycle?.currentState)
             }
 
@@ -699,7 +782,12 @@ class AppLovin private constructor() {
                 }
             }
 
-            override fun onAdLoadFailed(adUnitId: String, error: MaxError) {}
+            override fun onAdLoadFailed(adUnitId: String, error: MaxError) {
+                Log.e(TAG, "onAdLoadFailed: showInterstitialAdByTimes adUnitId=$adUnitId - ${error.message}")
+                if (shouldReloadAds) {
+                    retryLoadInterstitial(interstitialAd, context)
+                }
+            }
 
             override fun onAdDisplayFailed(ad: MaxAd, error: MaxError) {
                 Log.e(TAG, "onAdDisplayFailed: " + error.message)
@@ -1452,7 +1540,14 @@ class AppLovin private constructor() {
     }
 
     fun destroyInterstitial(interstitialAd: MaxInterstitialAd?) {
-        interstitialAd?.destroy()
+        interstitialAd?.let {
+            val adUnitId = it.adUnitId
+            interRetryRunnables.remove(adUnitId)?.let { runnable ->
+                interRetryHandler.removeCallbacks(runnable)
+            }
+            interRetryAttemptMap.remove(adUnitId)
+            it.destroy()
+        }
     }
 
     fun destroyRewardAd(rewardedAd: MaxRewardedAd?) {

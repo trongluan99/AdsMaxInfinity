@@ -106,11 +106,25 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * 3. Preload Interstitial Ad
+     * 3. Preload Interstitial Ad (Tự động Exponential Backoff Retry khi load thất bại)
      */
     private fun preloadInterstitialAd() {
-        maxInterstitialAd =
-            AppLovin.getInstance().getInterstitialAds(this, BuildConfig.ad_interstitial_splash)
+        maxInterstitialAd = AppLovin.getInstance().getInterstitialAds(
+            this,
+            BuildConfig.ad_interstitial_splash,
+            object : AppLovinCallback() {
+                override fun onAdLoaded() {
+                    Log.d(TAG, "Interstitial onAdLoaded: Sẵn sàng hiển thị")
+                }
+
+                override fun onAdFailedToLoad(error: MaxError?) {
+                    Log.e(
+                        TAG,
+                        "Interstitial onAdFailedToLoad: ${error?.message} -> Đang tự động retry lũy thừa..."
+                    )
+                }
+            }
+        )
     }
 
     private fun showInterstitialAd() {
@@ -121,9 +135,8 @@ class MainActivity : AppCompatActivity() {
                     Log.d(TAG, "Interstitial onAdClosed")
                     Toast.makeText(this@MainActivity, "Interstitial Closed", Toast.LENGTH_SHORT)
                         .show()
-                    preloadInterstitialAd()
                 }
-            }, true)
+            }, true) // shouldReload = true: Tự động tải lại ad mới cho lần tiếp theo (kèm auto retry nếu fail)
         } else {
             Toast.makeText(this, "Interstitial not ready yet, reloading...", Toast.LENGTH_SHORT)
                 .show()
@@ -169,5 +182,11 @@ class MainActivity : AppCompatActivity() {
                 .show()
             preloadRewardedAd()
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        AppLovin.getInstance().destroyInterstitial(maxInterstitialAd)
+        AppLovin.getInstance().destroyRewardAd(maxRewardedAd)
     }
 }

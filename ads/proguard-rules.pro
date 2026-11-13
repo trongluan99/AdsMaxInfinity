@@ -19,9 +19,22 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+# Google Mobile Ads / AdMob & Firebase
 -dontwarn com.google.android.gms.**
 -keep class com.google.android.gms.** { *; }
+-keep class com.google.android.gms.ads.** { *; }
+-dontwarn com.google.android.gms.ads.**
 -keep class com.google.firebase.** { *; }
+
+# AppLovin MAX Core SDK
+-keep class com.applovin.** { *; }
+-dontwarn com.applovin.**
+
+# AppLovin MAX Mediation Adapters (Google, Meta, Mintegral, Vungle, Moloco, ByteDance, Unity, etc.)
+-keep class com.applovin.mediation.adapters.** { *; }
+-keep class com.applovin.mediation.adapter.** { *; }
+-dontwarn com.applovin.mediation.adapters.**
+-dontwarn com.applovin.mediation.adapter.**
 
 #================================= ADJUST
 

@@ -297,7 +297,15 @@ AppOpenMax.getInstance().isAppResumeEnabled = true  // Bật lại
 
 ### 3. Interstitial Ad
 
-#### A. Preload và Show Interstitial
+#### A. Cơ chế Tự động Exponential Backoff Retry (Khuyến nghị từ AppLovin)
+Thư viện tích hợp sẵn cơ chế **Retry lũy thừa (Exponential Backoff)** chuẩn theo [tài liệu AppLovin MAX](https://support.applovin.com/en/max/adobe-air/ad-formats/interstitial-ads):
+- Khi load quảng cáo thất bại (`onAdLoadFailed`), thư viện tự động kích hoạt retry theo công thức:
+  $$\text{delaySeconds} = 2^{\min(6, \text{attempt})} \quad (2s, 4s, 8s, 16s, 32s, \max 64s)$$
+- Khi quảng cáo tải thành công (`onAdLoaded`), số lần retry tự động được reset về `0`.
+- An toàn vòng đời: Tự động kiểm tra `Activity` (`isFinishing` / `isDestroyed`) trước khi thực hiện tải lại để chống leak/crash.
+- Dọn dẹp tài nguyên: Khi gọi `destroyInterstitial(maxInterstitialAd)`, toàn bộ timer retry đang chờ sẽ được hủy tự động.
+
+#### B. Preload và Show Interstitial
 
 ```kotlin
 class MainActivity : AppCompatActivity() {
@@ -311,7 +319,25 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun preloadInterstitial() {
+        // Cách 1: Preload đơn giản (tự động retry nếu lỗi)
         maxInterstitialAd = AppLovin.getInstance().getInterstitialAds(this, "YOUR_INTERSTITIAL_ID")
+
+        // Cách 2: Preload kèm callback để lắng nghe sự kiện
+        /*
+        maxInterstitialAd = AppLovin.getInstance().getInterstitialAds(
+            this,
+            "YOUR_INTERSTITIAL_ID",
+            object : AppLovinCallback() {
+                override fun onAdLoaded() {
+                    Log.d("Ad", "Interstitial sẵn sàng hiển thị")
+                }
+
+                override fun onAdFailedToLoad(error: MaxError?) {
+                    Log.e("Ad", "Interstitial load thất bại: ${error?.message} (đang tự động retry...)")
+                }
+            }
+        )
+        */
     }
 
     private fun showInterstitial() {
@@ -322,20 +348,25 @@ class MainActivity : AppCompatActivity() {
                 inter,
                 object : AdCallback() {
                     override fun onAdClosed() {
-                        // Tải lại ad cho lần hiển thị tiếp theo
-                        preloadInterstitial()
+                        // Xử lý khi user đóng ad (chuyển màn, tiếp tục game,...)
                     }
                 },
-                true // Hiển thị Dialog loading chuẩn bị trước khi show ad
+                shouldReload = true // true: Tự động tải trước ad mới và auto retry nếu lỗi; false: Không tải lại
             )
         } else {
             preloadInterstitial()
         }
     }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // Giải phóng tài nguyên và hủy các timer retry đang chờ
+        AppLovin.getInstance().destroyInterstitial(maxInterstitialAd)
+    }
 }
 ```
 
-#### B. Hiển thị Interstitial theo số lần click (`showInterstitialAdByTimes`)
+#### C. Hiển thị Interstitial theo số lần click (`showInterstitialAdByTimes`)
 
 Cấu hình số lần click để show quảng cáo:
 ```kotlin
@@ -344,13 +375,14 @@ MaxAd.getInstance().setCountClickToShowAds(3)
 
 // Khi người dùng thực hiện một hành động (nhấn nút, chuyển bài, v.v.):
 AppLovin.getInstance().showInterstitialAdByTimes(
-    activity,
-    maxInterstitialAd,
-    object : AdCallback() {
+    activity = this,
+    interstitialAd = maxInterstitialAd,
+    callback = object : AdCallback() {
         override fun onAdClosed() {
-            preloadInterstitial()
+            // Callback khi ad đóng
         }
-    }
+    },
+    shouldReloadAds = true // Tự động reload ad tiếp theo kèm auto retry
 )
 ```
 
@@ -556,16 +588,25 @@ AppLovinSdk.getInstance(context).showMediationDebugger()
 
 ## 🔒 Cấu hình ProGuard
 
-Khi kích hoạt `minifyEnabled true`, hãy đảm bảo thêm các rule sau vào `proguard-rules.pro`:
+> **💡 Tự động cấu hình (Consumer ProGuard Rules):** Thư viện `AdsMaxInfinity` đã tích hợp sẵn `consumerProguardFiles`, nên khi ứng dụng của bạn bật `minifyEnabled true`, Gradle và R8 sẽ **tự động áp dụng** toàn bộ các keep rule cho AppLovin MAX Core, Mediation Adapters (Google AdMob, Meta, Mintegral...) và Google Mobile Ads mà không lo bị lỗi runtime ClassNotFoundException.
+
+Nếu bạn cần tham khảo hoặc khai báo bổ sung trong file `proguard-rules.pro` của app:
 
 ```proguard
+# Google Mobile Ads / AdMob & Firebase
 -dontwarn com.google.android.gms.**
 -keep class com.google.android.gms.** { *; }
+-keep class com.google.android.gms.ads.** { *; }
+-dontwarn com.google.android.gms.ads.**
 -keep class com.google.firebase.** { *; }
 
-# AppLovin MAX
+# AppLovin MAX Core SDK & Mediation Adapters (Google, Meta, Mintegral, Vungle, etc.)
 -keep class com.applovin.** { *; }
 -dontwarn com.applovin.**
+-keep class com.applovin.mediation.adapters.** { *; }
+-keep class com.applovin.mediation.adapter.** { *; }
+-dontwarn com.applovin.mediation.adapters.**
+-dontwarn com.applovin.mediation.adapter.**
 
 # Adjust
 -keep class com.adjust.sdk.** { *; }
